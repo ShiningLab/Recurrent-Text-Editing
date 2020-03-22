@@ -5,10 +5,17 @@ __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
 
+import json
+
+
 # helper functions
 def load_txt(path: str) -> list:
     with open(path, 'r', encoding='utf-8') as f: 
         return f.read().splitlines()
+
+def save_json(path: str, data_dict: dict) -> None:
+    with open(path, 'w') as f:
+        json.dump(data_dict, f, ensure_ascii=False)
 
 def white_space_tokenizer(str_seq_list: list) -> list:
     return [str_seq.split(' ') for str_seq in str_seq_list]
