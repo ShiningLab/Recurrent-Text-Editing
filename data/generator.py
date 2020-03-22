@@ -9,7 +9,7 @@ __email__ = 'mrshininnnnn@gmail.com'
 import os
 import argparse
 import numpy as np
-from utilities.save import save_txt
+from utils.save import save_txt
 
 
 # the calss to generate dataset
@@ -55,7 +55,8 @@ class MathematicalOperatorInsertion():
                 operations_pool.add(''.join(operation))
             # to avoid zero division error
             try: 
-                value = str(eval(' '.join(operation))) 
+                # flost to int to string
+                value = str(int(eval(' '.join(operation))))
                 # to keep vocab size
                 if value in self.value_dict: 
                     self.value_dict[value].append(operation)
