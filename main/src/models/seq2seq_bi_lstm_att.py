@@ -2,7 +2,8 @@
 # -*- coding:utf-8 -*-
 
 __author__ = 'Shining'
-__email__ = 'ning.shi@learnable.ai'
+__email__ = 'mrshininnnnn@gmail.com'
+
 
 import torch
 import random

@@ -5,8 +5,13 @@ __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
 
+#public
 import torch
 from torch.utils import data as torch_data
+
+import random
+# private
+from ..models import gru_rnn
 
 
 class Een2EndDataset(torch_data.Dataset):
@@ -15,7 +20,7 @@ class Een2EndDataset(torch_data.Dataset):
             super(Een2EndDataset, self).__init__()
             self.xs = data_dict['xs']
             self.ys = data_dict['ys']
-            self.data_size = len(self.x)
+            self.data_size = len(self.xs)
 
       def __len__(self):
             return self.data_size
@@ -23,32 +28,79 @@ class Een2EndDataset(torch_data.Dataset):
       def __getitem__(self, idx):
             return self.xs[idx], self.ys[idx]
 
-def end2end_collate_fn(data, config): 
-    # a customized collate function used in the data loader 
-    def preprocess(xs, ys): 
-        # add start and end symbol 
-        xs = [torch.Tensor([self.config.start_idx] + x + [self.config.end_idx]) for x in xs]
-        ys_in = [torch.Tensor([self.config.start_idx] + y) for y in ys]
-                  ys_out = [torch.Tensor(y + [self.config.end_idx]) for y in ys]
-                  return xs, ys_in, ys_out
+# def get_batch_size(dataset_size, batch_size): 
+#     if dataset_size % batch_size == 0: 
+#         return dataset_size // batch_size
+#     else: 
+#         return dataset_size // batch_size + 1
 
-            def padding(seqs):
-                  seq_length_list = [len(seq) for seq in seqs]
-                  padded_seqs = torch.zeros([len(seqs), max(seq_length_list)], dtype=torch.int64)
-                  for i, seq in enumerate(seqs):
-                        seq_length = seq_length_list[i]
-                        padded_seqs[i, :seq_length] = seq[:seq_length]
-                  return padded_seqs, seq_length_list
+def pick_model(model_name, config):
+    if model_name == "gru_rnn":
+        return gru_rnn.ModelGraph(config).to(config.device)
 
-            data.sort(key=len, reverse=True)
-            xs, ys = zip(*data)
-            xs, ys_in, ys_out = preprocess(xs, ys)
-            xs, x_lens = padding(xs)
-            ys_in, y_lens = padding(ys_in)
-            ys_out, _ = padding(ys_out)
+def init_parameters(model): 
+    for name, parameters in model.named_parameters(): 
+        if 'weight' in name: 
+            torch.nn.init.normal_(parameters.data, mean=0, std=0.01)
+        else:
+            torch.nn.init.constant_(parameters.data, 0)
 
-            return (xs.to(self.config.device), 
-                  torch.Tensor(x_lens).to(self.config.device), 
-                  ys_in.to(self.config.device), 
-                  ys_out.to(self.config.device), 
-                  torch.Tensor(y_lens).to(self.config.device))
+def count_parameters(model): 
+    # get total size of trainable parameters 
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+def show_config(config, model):
+    # show configuration
+    print('\n*Configuration*')
+    print('model:', config.model_name)
+    print('trainable parameters:{:,.0f}'.format(config.num_parameters))
+    print("model's state_dict:")
+    for parameters in model.state_dict(): 
+        print(parameters, "\t", model.state_dict()[parameters].size())
+    print('device:', config.device)
+    print('use gpu:', config.use_gpu)
+    print('train size:', config.train_size)
+    print('valid size:', config.valid_size)
+    print('test size:', config.test_size)
+    print('vocab size:', config.vocab_size)
+    print('batch size:', config.batch_size)
+    print('train batch:', config.train_batch)
+    print('valid batch:', config.valid_batch)
+    print('test batch:', config.test_batch)
+    print('\nif load check point:', config.load_check_point)
+    if config.load_check_point: 
+        print('Model restored from {}.'.format(config.LOAD_POINT))
+        print()
+
+def index_to_vocab(idx_seq: list, idx2vocab_dict: dict) -> list: 
+    return [idx2vocab_dict[idx] for idx in idx_seq]
+
+def vocab_to_index(tk_seq: list, vocab2idx_dict:dict) -> list:
+    return [vocab2idx_dict[token] for token in tk_seq]
+
+def rm_pad(seq, pad_idx):
+    return [i for i in seq if i != pad_idx]
+
+def prepare_output(srcs, tars, preds, pad_idx): 
+    srcs = [rm_pad(seq, pad_idx) for seq in srcs] 
+    tars = [rm_pad(seq, pad_idx) for seq in tars] 
+    preds = [p_seq[:len(t_seq)] for p_seq, t_seq in zip(preds, tars)] 
+    return srcs, tars, preds
+
+def save_check_point(step, epoch, model_state_dict, opt_state_dict, path):
+    # save model, optimizer, and everything required to keep
+    checkpoint_to_save = {
+        'step': step, 
+        'epoch': epoch, 
+        'model': model_state_dict(), 
+        'optimizer': opt_state_dict()}
+    torch.save(checkpoint_to_save, path)
+    print('Model saved as {}.'.format(path))
+
+def rand_sample(srcs, tars, preds, idx2vocab_dict): 
+    src, tar, pred = random.choice([(src, tar, pred) for src, tar, pred in zip(srcs, tars, preds)])
+    src = index_to_vocab(src, idx2vocab_dict)
+    tar = index_to_vocab(tar, idx2vocab_dict)
+    pred = index_to_vocab(pred, idx2vocab_dict)
+    return ' '.join(src), ' '.join(tar), ' '.join(pred)
+
