@@ -12,11 +12,11 @@ class Config():
       def __init__(self): 
         # data source
         self.method = "end2end"
-        self.model_name = "lstm_rnn"
+        self.model_name = "gru_rnn"
         self.load_check_point = False
         self.vocab_size = 10
-        self.seq_len = 5 # input sequence length
-        self.data_size = 10000 # total data size
+        self.seq_len = 10 # input sequence length
+        self.data_size = 100000 # total data size
         # path
         self.CURR_PATH = os.path.dirname(os.path.realpath(__file__))
         self.TASK_PATH = os.path.join('vocab_size_{}'.format(self.vocab_size), 
@@ -25,22 +25,18 @@ class Config():
         self.VOCAB_PATH = os.path.join(self.CURR_PATH, 'res/data/', self.method, self.TASK_PATH, 'vocab.json')
         self.SAVE_PATH = os.path.join(self.CURR_PATH, 'res/check_points/', self.method, self.TASK_PATH)
         if not os.path.exists(self.SAVE_PATH): os.makedirs(self.SAVE_PATH)
-        self.SAVE_POINT = os.path.join(self.SAVE_PATH, '{}_step_{}_epoch.pt')
-        self.LOAD_POINTS = [p for p in os.listdir(self.SAVE_PATH) if p.endswith('.pt')]
-        if len(self.LOAD_POINTS) != 0: 
-            self.LOAD_POINT = sorted(self.LOAD_POINTS, key=lambda x: int(x.split('_')[0]))[-1] 
-            self.LOAD_POINT = os.path.join(self.SAVE_PATH, self.LOAD_POINT)
-        else:
-            self.load_check_point = False
+        self.SAVE_POINT = os.path.join(self.SAVE_PATH, '{}.pt'.format(self.model_name))
+        self.LOAD_POINT = self.SAVE_POINT
+        if not os.path.exists(self.LOAD_POINT): self.load_check_point = False
         self.LOG_PATH = os.path.join(self.CURR_PATH, 'res/log/', self.method, self.TASK_PATH)
         if not os.path.exists(self.LOG_PATH): os.makedirs(self.LOG_PATH)
-        self.LOG_PATH = os.path.join(self.LOG_PATH,  'log.txt')
+        self.LOG_PATH = os.path.join(self.LOG_PATH,  '{}.txt'.format(self.model_name))
         # initialization
         self.pad_symbol = '<pad>'
         self.start_symbol = '<s>'
         self.end_symbol = '</s>'
         # data loader
-        self.batch_size = 128
+        self.batch_size = 512
         self.shuffle = True
         self.drop_last = True
         # training

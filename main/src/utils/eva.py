@@ -21,12 +21,12 @@ class Evaluate():
         # sequence-level accuracy
         self.seq_acc = self.get_seq_acc()
 
-    def check_equation(self, pred): 
+    def check_equation(self, tar, pred): 
+        tar_ans = self.idx2vocab_dict[tar[-2]]
         pred = [self.idx2vocab_dict[i] for i in pred][:-1]
         try:
-            right_side = pred[-1]
-            left_side = pred[:-2]
-            if eval(' '.join(pred)) and float(eval(' '.join(left_side))) == float(right_side):
+            pred_ans = pred[-1]
+            if pred_ans == tar_ans and eval(' '.join(pred)):
                 return 1
             else:
                 return 0
@@ -47,8 +47,9 @@ class Evaluate():
     def get_acc(self):
         a = 0
         for i in range(self.size):
+            tar = self.tars[i]
             pred = self.preds[i]
-            a += self.check_equation(pred)
+            a += self.check_equation(tar, pred)
         return np.float32(a/self.size)
 
     def get_token_acc(self):

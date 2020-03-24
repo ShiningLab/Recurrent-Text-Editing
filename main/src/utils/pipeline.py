@@ -28,12 +28,6 @@ class Een2EndDataset(torch_data.Dataset):
       def __getitem__(self, idx):
             return self.xs[idx], self.ys[idx]
 
-# def get_batch_size(dataset_size, batch_size): 
-#     if dataset_size % batch_size == 0: 
-#         return dataset_size // batch_size
-#     else: 
-#         return dataset_size // batch_size + 1
-
 def pick_model(model_name, config):
     if model_name == "gru_rnn":
         return gru_rnn.ModelGraph(config).to(config.device)
@@ -60,12 +54,10 @@ def show_config(config, model):
     print('device:', config.device)
     print('use gpu:', config.use_gpu)
     print('train size:', config.train_size)
-    print('valid size:', config.valid_size)
     print('test size:', config.test_size)
     print('vocab size:', config.vocab_size)
     print('batch size:', config.batch_size)
     print('train batch:', config.train_batch)
-    print('valid batch:', config.valid_batch)
     print('test batch:', config.test_batch)
     print('\nif load check point:', config.load_check_point)
     if config.load_check_point: 
