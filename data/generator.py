@@ -105,21 +105,35 @@ class MathematicalOperatorInsertion():
         
         return self.xs, self.ys
 
-def save_dataset(xs, ys, args):
+def train_test_split(xs, ys): 
+    dataset = np.array([(x, y) for x, y in zip(xs, ys)])
+    data_size = dataset.shape[0]
+    indices = np.random.permutation(data_size)
+    train_size = int(0.8*data_size)
+    test_size = int(0.2*data_size)
+    train_idx = indices[:train_size]
+    test_idx = indices[train_size:]
+    train_set = dataset[train_idx, :]
+    test_set = dataset[test_idx, :]
+    print('train size', train_size, train_set.shape[0])
+    print('test size', test_size, test_set.shape[0])
+    return train_set, test_set
 
-    data_size = len(xs)
-    print("real data size", len(ys), data_size)
-
-    outdir = 'raw'
-    outdir = os.path.join(outdir, 'vocab_size_{}'.format(args.vocab_size), 
-                    'seq_len_{}'.format(args.seq_len), 
-                    'data_size_{}'.format(data_size))
+def save_dataset(train_set, test_set, args): 
+    outdir = 'raw' 
+    outdir = os.path.join(
+        outdir, 
+        'vocab_size_{}'.format(args.vocab_size), 
+        'seq_len_{}'.format(args.seq_len), 
+        'data_size_{}'.format(args.data_size))
     
     if not os.path.exists(outdir): 
         os.makedirs(outdir)
 
-    save_txt(os.path.join(outdir, 'x.txt'), xs)
-    save_txt(os.path.join(outdir, 'y.txt'), ys)
+    save_txt(os.path.join(outdir, 'train_x.txt'), train_set[:, 0])
+    save_txt(os.path.join(outdir, 'train_y.txt'), train_set[:, 1])
+    save_txt(os.path.join(outdir, 'test_x.txt'), test_set[:, 0])
+    save_txt(os.path.join(outdir, 'test_y.txt'), test_set[:, 1])
 
     print("find output from", outdir)
 
@@ -145,8 +159,8 @@ def main():
         vocab_size=args.vocab_size, 
         seq_len=args.seq_len-1, 
         data_size=args.data_size)
-
-    save_dataset(xs, ys, args)
+    train_set, test_set = train_test_split(xs, ys)
+    save_dataset(train_set, test_set, args)
 
 if __name__ == '__main__': 
     main()

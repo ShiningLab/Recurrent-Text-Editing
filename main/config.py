@@ -3,7 +3,6 @@
 
 __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
-__email__ = 'ning.shi@learnable.ai'
 
 import os
 
@@ -11,11 +10,11 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.method = "end2end"
-        self.model_name = "gru_rnn"
+        self.method = "end2end" # end2end, recursion
+        self.model_name = "bi_lstm_rnn_att" # gru_rnn, lstm_rnn, bi_lstm_rnn_att
         self.load_check_point = False
         self.vocab_size = 10
-        self.seq_len = 10 # input sequence length
+        self.seq_len = 5 # input sequence length
         self.data_size = 100000 # total data size
         # path
         self.CURR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -36,7 +35,7 @@ class Config():
         self.start_symbol = '<s>'
         self.end_symbol = '</s>'
         # data loader
-        self.batch_size = 512
+        self.batch_size = 256
         self.shuffle = True
         self.drop_last = True
         # training
@@ -58,4 +57,12 @@ class Config():
         self.en_drop_rate = 0.5
         self.de_drop_rate = 0.5
 
-            
+class End2EndConfig(Config):
+    """docstring for End2EndConfig"""
+    def __init__(self):
+        super(End2EndConfig, self).__init__()
+
+class RecursionConfig(Config):
+    """docstring for RecursionConfig"""
+    def __init__(self):
+        super(RecursionConfig, self).__init__()

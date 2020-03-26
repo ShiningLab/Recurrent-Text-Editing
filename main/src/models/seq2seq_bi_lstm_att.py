@@ -70,7 +70,7 @@ class Encoder(torch.nn.Module):
             h = torch.unsqueeze(torch.cat(torch.unbind(h, 0), 1), 0)
             c = torch.unsqueeze(torch.cat(torch.unbind(c, 0), 1), 0)
             # 1, batch, de_hidden_size
-            return en_output, (self.h_out(h), self.c_out(h))
+            return en_output, (self.h_out(h), self.c_out(c))
 
 class Attn(torch.nn.Module):
       def __init__(self, config):

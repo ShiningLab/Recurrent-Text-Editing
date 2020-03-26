@@ -10,14 +10,16 @@ import torch
 from torch.utils import data as torch_data
 
 import random
+import numpy as np
+
 # private
-from ..models import gru_rnn
+from ..models import gru_rnn, lstm_rnn, bi_lstm_rnn_att
 
 
-class Een2EndDataset(torch_data.Dataset):
+class Dataset(torch_data.Dataset):
       """Custom data.Dataset compatible with data.DataLoader."""
       def __init__(self, data_dict):
-            super(Een2EndDataset, self).__init__()
+            super(Dataset, self).__init__()
             self.xs = data_dict['xs']
             self.ys = data_dict['ys']
             self.data_size = len(self.xs)
@@ -28,9 +30,60 @@ class Een2EndDataset(torch_data.Dataset):
       def __getitem__(self, idx):
             return self.xs[idx], self.ys[idx]
 
-def pick_model(model_name, config):
-    if model_name == "gru_rnn":
-        return gru_rnn.ModelGraph(config).to(config.device)
+# class Een2EndDataset(torch_data.Dataset):
+#       """Custom data.Dataset compatible with data.DataLoader."""
+#       def __init__(self, data_dict):
+#             super(Een2EndDataset, self).__init__()
+#             self.xs = data_dict['xs']
+#             self.ys = data_dict['ys']
+#             self.data_size = len(self.xs)
+
+#       def __len__(self):
+#             return self.data_size
+
+#       def __getitem__(self, idx):
+#             return self.xs[idx], self.ys[idx]
+
+# class OfflineRecursionDataset(torch_data.Dataset):
+#       """Custom data.Dataset compatible with data.DataLoader."""
+#       def __init__(self, data_dict):
+#             super(OfflineRecursionDataset, self).__init__()
+#             self.xs = data_dict['xs']
+#             self.ys = data_dict['ys']
+#             self.data_size = len(self.xs)
+
+#       def __len__(self):
+#             return self.data_size
+
+#       def __getitem__(self, idx):
+#             return self.xs[idx], self.ys[idx]
+
+class OnlineRecursionDataset(torch_data.Dataset):
+      """Custom data.Dataset compatible with data.DataLoader."""
+      def __init__(self, data_dict):
+            super(OnlineRecursionDataset, self).__init__()
+            self.ys = data_dict['ys']
+            self.data_size = len(self.ys)
+
+      def __len__(self):
+            return self.data_size
+
+      def __getitem__(self, idx):
+            return self.ys[idx]
+
+def pick_model(config):
+    if config.model_name == 'gru_rnn':
+        if config.method == 'end2end':
+            return gru_rnn.End2EndModelGraph(config).to(config.device)
+        elif method == 'recursion':
+            return gru_rnn.RecursionModelGraph(config).to(config.device)
+    elif config.model_name == 'lstm_rnn':
+        if config.method == 'end2end':
+            return lstm_rnn.End2EndModelGraph(config).to(config.device)
+    elif config.model_name =='bi_lstm_rnn_att':
+        if config.method == 'end2end':
+            return bi_lstm_rnn_att.End2EndModelGraph(config).to(config.device)
+
 
 def init_parameters(model): 
     for name, parameters in model.named_parameters(): 
@@ -55,7 +108,8 @@ def show_config(config, model):
     print('use gpu:', config.use_gpu)
     print('train size:', config.train_size)
     print('test size:', config.test_size)
-    print('vocab size:', config.vocab_size)
+    print('source vocab size:', config.src_vocab_size)
+    print('target vocab size:', config.tgt_vocab_size)
     print('batch size:', config.batch_size)
     print('train batch:', config.train_batch)
     print('test batch:', config.test_batch)
@@ -89,10 +143,32 @@ def save_check_point(step, epoch, model_state_dict, opt_state_dict, path):
     torch.save(checkpoint_to_save, path)
     print('Model saved as {}.'.format(path))
 
-def rand_sample(srcs, tars, preds, idx2vocab_dict): 
+def rand_sample(srcs, tars, preds, src_dict, tar_dict, pred_dict): 
     src, tar, pred = random.choice([(src, tar, pred) for src, tar, pred in zip(srcs, tars, preds)])
-    src = index_to_vocab(src, idx2vocab_dict)
-    tar = index_to_vocab(tar, idx2vocab_dict)
-    pred = index_to_vocab(pred, idx2vocab_dict)
+    src = index_to_vocab(src, src_dict)
+    tar = index_to_vocab(tar, tar_dict)
+    pred = index_to_vocab(pred, pred_dict)
     return ' '.join(src), ' '.join(tar), ' '.join(pred)
+
+# a function to generate a sequence pair
+# given a label sequence
+def get_sequence_pair(y: list) -> list:
+    x = y.copy()
+    # get operator indexes
+    operator_idxes = list(range(1, len(x), 2))
+    # decide how many operators to remove
+    num_idxes = np.random.choice(range(len(operator_idxes)+1))
+    if num_idxes == 0:
+        return x, ['<completion>', '<none>', '<none>']
+    else:
+        # decide operators to remove
+        idxes_to_remove = sorted(np.random.choice(operator_idxes, num_idxes, replace=False))
+        # generat possible ys
+        ys = [['<insertion>', str(idxes_to_remove[i]-i), x[idxes_to_remove[i]]] 
+              for i in range(len(idxes_to_remove))]
+        # pick y randomly
+        y = ys[np.random.choice(range(len(ys)))]
+        # remove operators
+        x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
+        return x, y
 

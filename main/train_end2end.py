@@ -12,7 +12,7 @@ import os
 from tqdm import tqdm
 
 # private
-from config import Config
+from config import End2EndConfig
 from src.utils.eva import Evaluate
 from src.utils.save import *
 from src.utils.load import *
@@ -39,12 +39,16 @@ class TextEditor(object):
 
     def load_vocab(self):
         # load the vocab dictionary and update config
-        self.vocab2idx_dict = load_json(self.config.VOCAB_PATH)
-        self.idx2vocab_dict = {v: k for k, v in self.vocab2idx_dict.items()}
-        self.config.pad_idx = self.vocab2idx_dict[self.config.pad_symbol]
-        self.config.start_idx = self.vocab2idx_dict[self.config.start_symbol]
-        self.config.end_idx = self.vocab2idx_dict[self.config.end_symbol]
-        self.config.vocab_size = len(self.vocab2idx_dict)
+        vocab_dict = load_json(self.config.VOCAB_PATH)
+        self.src_vocab2idx_dict = vocab_dict['src']
+        self.tgt_vocab2idx_dict = vocab_dict['tgt']
+        self.src_idx2vocab_dict = {v: k for k, v in self.src_vocab2idx_dict.items()}
+        self.tgt_idx2vocab_dict = {v: k for k, v in self.tgt_vocab2idx_dict.items()}
+        self.config.pad_idx = self.src_vocab2idx_dict[self.config.pad_symbol]
+        self.config.start_idx = self.src_vocab2idx_dict[self.config.start_symbol]
+        self.config.end_idx = self.src_vocab2idx_dict[self.config.end_symbol]
+        self.config.src_vocab_size = len(self.src_vocab2idx_dict)
+        self.config.tgt_vocab_size = len(self.tgt_vocab2idx_dict)
 
     def end2end_collate_fn(self, data): 
         # a customized collate function used in the data loader 
@@ -61,21 +65,22 @@ class TextEditor(object):
             for i, seq in enumerate(seqs): 
                 seq_len = seq_lens[i]
                 padded_seqs[i, :seq_len] = seq[:seq_len]
-            return padded_seqs
+            return padded_seqs, seq_lens
 
-        data.sort(key=len, reverse=True)
         xs, ys = zip(*data)
         xs, ys = preprocess(xs, ys)
-        xs = padding(xs)
-        ys = padding(ys)
+        xs, x_lens = padding(xs)
+        ys, _ = padding(ys)
 
-        return xs.to(self.config.device), ys.to(self.config.device)
+        return (xs.to(self.config.device), 
+            torch.Tensor(x_lens).to(self.config.device), 
+            ys.to(self.config.device))
 
     def load_data(self): 
         # read data dictionary from json file
         self.data_dict = load_json(self.config.DATA_PATH)
         # train data loader
-        self.train_dataset = Een2EndDataset(self.data_dict['train'])
+        self.train_dataset = Dataset(self.data_dict['train'])
         self.trainset_generator = torch_data.DataLoader(
               self.train_dataset, 
               batch_size=self.config.batch_size, 
@@ -83,7 +88,7 @@ class TextEditor(object):
               shuffle=self.config.shuffle, 
               drop_last=self.config.drop_last)
         # test data loader
-        self.test_dataset = Een2EndDataset(self.data_dict['test'])
+        self.test_dataset = Dataset(self.data_dict['test'])
         self.testset_generator = torch_data.DataLoader(
               self.test_dataset, 
               batch_size=self.config.batch_size, 
@@ -94,7 +99,6 @@ class TextEditor(object):
         self.config.train_batch = len(self.trainset_generator)
         self.config.test_size = len(self.test_dataset)
         self.config.test_batch = len(self.testset_generator)
-        # self.check_iteration = [int(self.config.train_batch*i) for i in [0.25, 0.5, 0.75, 1.]]
 
     def load_check_point(self):
         checkpoint_to_load =  torch.load(self.config.LOAD_POINT, map_location=self.config.device) 
@@ -106,7 +110,7 @@ class TextEditor(object):
 
     def setup_model(self): 
         # initialize model weights, optimizer, and loss function
-        self.model = pick_model(self.config.model_name, self.config)
+        self.model = pick_model(self.config)
         self.model.apply(init_parameters)
         self.criterion = torch.nn.NLLLoss(ignore_index=self.config.pad_idx)
         self.opt = torch.optim.Adam(self.model.parameters(), lr=self.config.learning_rate)
@@ -121,9 +125,12 @@ class TextEditor(object):
             self.model.train()
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
-            for i, (xs, ys) in enumerate(trainset_generator): 
-                ys_ = self.model(xs, ys, self.config.teacher_forcing_ratio)
-                loss = self.criterion(ys_.reshape(-1, self.config.vocab_size), ys.reshape(-1))
+            for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
+                # print(x_lens.cpu().detach().numpy()[0])
+                # print(index_to_vocab(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
+                # print(index_to_vocab(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+                ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
+                loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
                 # update step
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.clipping_threshold)
@@ -137,11 +144,12 @@ class TextEditor(object):
             ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
             xs, ys, ys_ = prepare_output(xs, ys, ys_, self.config.pad_idx)
             # evaluation
-            eva_matrix = Evaluate(self.config, ys, ys_, self.idx2vocab_dict)
+            eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict)
             print('Train Epoch {} Total Step {} Loss:{:.4f} Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
                 self.epoch, self.step, loss, eva_matrix.acc, eva_matrix.token_acc, eva_matrix.seq_acc))
             # random sample to show
-            src, tar, pred = rand_sample(xs, ys, ys_, self.idx2vocab_dict)
+            src, tar, pred = rand_sample(xs, ys, ys_, 
+                self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
             print(' src: {}\n tar: {}\n pred: {}'.format(src, tar, pred))
             # star testing
             self.test()
@@ -163,9 +171,9 @@ class TextEditor(object):
         testset_generator = tqdm(self.testset_generator)
         self.model.eval()
         with torch.no_grad():
-            for xs, ys in testset_generator:
-                ys_ = self.model(xs, ys, teacher_forcing_ratio=0.)
-                loss = self.criterion(ys_.reshape(-1, self.config.vocab_size), ys.reshape(-1))
+            for xs, x_lens, ys in testset_generator:
+                ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
+                loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
                 loss = loss.item()
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
@@ -177,18 +185,19 @@ class TextEditor(object):
                 all_ys_ += ys_
 
         all_loss /= self.config.test_batch
-        eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.idx2vocab_dict)
+        eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.tgt_idx2vocab_dict)
         log_msg = 'Test Epoch:{} Total Step:{} Loss:{:.4f} Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
             self.epoch, self.step, all_loss, eva_matrix.acc, eva_matrix.token_acc, eva_matrix.seq_acc)
         self.test_log.append(log_msg)
         print(log_msg)
         # random sample to show
-        src, tar, pred = rand_sample(all_xs, all_ys, all_ys_, self.idx2vocab_dict)
+        src, tar, pred = rand_sample(xs, ys, ys_, 
+            self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
         print(' src: {}\n tar: {}\n pred: {}'.format(src, tar, pred))
 
 def main(): 
     # initial everything
-    te = TextEditor(Config())
+    te = TextEditor(End2EndConfig())
     # train!
     te.train()
 

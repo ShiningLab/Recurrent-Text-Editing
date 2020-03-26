@@ -22,7 +22,6 @@ class End2EndDataPreprocess(object):
         self.data_size = data_size
         self.init_paths()
         self.data_preprocess()
-        self.train_test_split()
         self.save()
 
     def init_paths(self):
@@ -40,71 +39,81 @@ class End2EndDataPreprocess(object):
 
     def data_preprocess(self):
         # load raw dataset
-        raw_xs = load_txt(os.path.join(self.indir, 'x.txt'))
-        raw_ys = load_txt(os.path.join(self.indir, 'y.txt'))
-        # check duplicates
-        dataset = [(src, tgt) for src, tgt in zip(raw_xs, raw_ys)]
-        dataset = np.array(list(set(dataset)))
-        print('dataset shape:', dataset.shape)
+        raw_train_xs = load_txt(os.path.join(self.indir, 'train_x.txt'))
+        raw_train_ys = load_txt(os.path.join(self.indir, 'train_y.txt'))
+        raw_test_xs = load_txt(os.path.join(self.indir, 'test_x.txt'))
+        raw_test_ys = load_txt(os.path.join(self.indir, 'test_y.txt'))
+        # check data size
+        print('train sample size', len(raw_train_xs))
+        print('train label size', len(raw_train_ys))
+        print('test sample size', len(raw_test_xs))
+        print('test label size', len(raw_test_ys))
         # white space tokenization
-        xs = dataset[:, 0]
-        ys = dataset[:, 1]
-        tk_xs = white_space_tokenizer(xs)
-        tk_ys = white_space_tokenizer(ys)
+        train_xs = white_space_tokenizer(raw_train_xs)
+        train_ys = white_space_tokenizer(raw_train_ys)
         # vocabulary frequency distribution
         counter = Counter()
-        for x in tk_xs: 
+        for x in train_xs:
             counter.update(x)
-        for y in tk_ys:
-            counter.update(y)
-        vocab_list = sorted(counter.keys())
-        # vocabulary dictionary
-        self.vocab2idx_dict = dict()
-        self.vocab2idx_dict['<pad>'] = 0 # to pad sequence length
-        self.vocab2idx_dict['<s>'] = 1 # to mark the start of a sequence
-        self.vocab2idx_dict['</s>'] = 2 # to mark the end of a sequence
+        src_vocab_list = sorted(counter.keys())
+        # soruce vocabulary dictionary
+        src_vocab2idx_dict = dict()
+        src_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
+        src_vocab2idx_dict['<s>'] = 1 # to mark the start of a sequence
+        src_vocab2idx_dict['</s>'] = 2 # to mark the end of a sequence
 
-        i = len(self.vocab2idx_dict)
-        for token in vocab_list:
-            self.vocab2idx_dict[token] = i
+        i = len(src_vocab2idx_dict)
+        for token in src_vocab_list:
+            src_vocab2idx_dict[token] = i
             i += 1
-        print('vocab size:', len(self.vocab2idx_dict))
-        # convert vocabulary to index
-        self.xs = vocab_to_index(tk_xs, self.vocab2idx_dict)
-        self.ys = vocab_to_index(tk_ys, self.vocab2idx_dict)
+        # target vocabulary frequency distribution
+        counter = Counter()
+        for y in train_ys:
+            counter.update(y)
+        tgt_vocab_list = sorted(counter.keys())
+        # target vocabulary dictionary
+        tgt_vocab2idx_dict = dict()
+        tgt_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
+        tgt_vocab2idx_dict['<s>'] = 1 # to mark the start of a sequence
+        tgt_vocab2idx_dict['</s>'] = 2 # to mark the end of a sequence
 
-    def train_test_split(self):
-        # train test split
-        dataset = np.array([(x, y) for x, y in zip(self.xs, self.ys)])
-        data_size = dataset.shape[0]
-        indices = np.random.permutation(data_size)
-        train_size = int(0.8*data_size)
-        test_size = int(0.2*data_size)
-        train_idx = indices[:train_size]
-        test_idx = indices[train_size:]
-        train_set = dataset[train_idx, :]
-        test_set = dataset[test_idx, :]
-        print('train size', train_size, train_set.shape[0])
-        print('test size', test_size, test_set.shape[0])
+        i = len(tgt_vocab2idx_dict)
+        for token in tgt_vocab_list:
+            tgt_vocab2idx_dict[token] = i
+            i += 1
+        # convert vocabulary to index
+        train_xs = vocab_to_index(train_xs, src_vocab2idx_dict)
+        train_ys = vocab_to_index(train_ys, tgt_vocab2idx_dict)
+        # white space tokenization
+        test_xs = white_space_tokenizer(raw_test_xs)
+        test_ys = white_space_tokenizer(raw_test_ys)
+        # convert vocabulary to index
+        test_xs = vocab_to_index(test_xs, src_vocab2idx_dict)
+        test_ys = vocab_to_index(test_ys, tgt_vocab2idx_dict)
         # combine data sets to a dict
         train_dict = {}
-        train_dict['xs'] = train_set[:, 0].tolist()
-        train_dict['ys'] = train_set[:, 1].tolist()
+        train_dict['xs'] = train_xs
+        train_dict['ys'] = train_ys
 
         test_dict = {}
-        test_dict['xs'] = test_set[:, 0].tolist()
-        test_dict['ys'] = test_set[:, 1].tolist()
+        test_dict['xs'] = test_xs
+        test_dict['ys'] = test_ys
 
         self.data_dict = dict()
         self.data_dict['train'] = train_dict
         self.data_dict['test'] = test_dict
 
+        self.vocab_dict = dict()
+        self.vocab_dict['src'] = src_vocab2idx_dict
+        self.vocab_dict['tgt'] = tgt_vocab2idx_dict
+
     def save(self):
         # save output as json
         data_path = os.path.join(self.outdir, 'data.json')
         vocab_path = os.path.join(self.outdir, 'vocab.json')
+
         save_json(data_path, self.data_dict)
-        save_json(vocab_path, self.vocab2idx_dict)
+        save_json(vocab_path, self.vocab_dict)
 
 def main(): 
     
