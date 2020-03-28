@@ -22,20 +22,20 @@ class MathematicalOperatorInsertion():
     
     def gen_base_dataset(self, vocab_size):
         # return a base dataset
-        x = [str(i) for i in range(vocab_size)]
+        x = [str(i) for i in range(2, vocab_size+2)]
         y = x.copy()
         return x, y
     
     def gen_base_dict(self, vocab_size):
         # initialize a base value dict
-        return {str(i):[] for i in range(vocab_size)}
+        return {str(i):[] for i in range(2, vocab_size+2)}
         
     def gen_operation(self, vocab_size, seq_len):
         # a recursive function to geneate an operation
         # given the number of digits to involve
-        a = np.random.choice(range(vocab_size))
+        a = np.random.choice(range(2, vocab_size+2))
         o = np.random.choice(self.operators)
-        b = np.random.choice(range(vocab_size))
+        b = np.random.choice(range(2, vocab_size+2))
         if seq_len == 1:
             return [str(a)]
         else:

@@ -134,7 +134,5 @@ class BiLSTMRNNEncoder(nn.Module):
         h = torch.unsqueeze(torch.cat(torch.unbind(h, 0), 1), 0)
         c = torch.unsqueeze(torch.cat(torch.unbind(c, 0), 1), 0)
         x = self.lstm_dropout(x)
-        h = self.lstm_dropout(h)
-        c = self.lstm_dropout(c)
 
         return x, (h, c)

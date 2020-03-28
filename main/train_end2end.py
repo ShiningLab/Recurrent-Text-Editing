@@ -110,7 +110,7 @@ class TextEditor(object):
 
     def setup_model(self): 
         # initialize model weights, optimizer, and loss function
-        self.model = pick_model(self.config)
+        self.model = pick_model(self.config, 'end2end')
         self.model.apply(init_parameters)
         self.criterion = torch.nn.NLLLoss(ignore_index=self.config.pad_idx)
         self.opt = torch.optim.Adam(self.model.parameters(), lr=self.config.learning_rate)

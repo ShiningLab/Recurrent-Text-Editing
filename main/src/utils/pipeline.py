@@ -71,18 +71,22 @@ class OnlineRecursionDataset(torch_data.Dataset):
       def __getitem__(self, idx):
             return self.ys[idx]
 
-def pick_model(config):
+def pick_model(config, method):
     if config.model_name == 'gru_rnn':
-        if config.method == 'end2end':
+        if method == 'end2end':
             return gru_rnn.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return gru_rnn.RecursionModelGraph(config).to(config.device)
     elif config.model_name == 'lstm_rnn':
-        if config.method == 'end2end':
+        if method == 'end2end':
             return lstm_rnn.End2EndModelGraph(config).to(config.device)
+        elif method == 'recursion':
+            return lstm_rnn.RecursionModelGraph(config).to(config.device)
     elif config.model_name =='bi_lstm_rnn_att':
-        if config.method == 'end2end':
+        if method == 'end2end':
             return bi_lstm_rnn_att.End2EndModelGraph(config).to(config.device)
+        if method == 'recursion':
+            return bi_lstm_rnn_att.RecursionModelGraph(config).to(config.device)
 
 
 def init_parameters(model): 
@@ -118,11 +122,8 @@ def show_config(config, model):
         print('Model restored from {}.'.format(config.LOAD_POINT))
         print()
 
-def index_to_vocab(idx_seq: list, idx2vocab_dict: dict) -> list: 
+def translate(idx_seq: list, idx2vocab_dict: dict) -> list: 
     return [idx2vocab_dict[idx] for idx in idx_seq]
-
-def vocab_to_index(tk_seq: list, vocab2idx_dict:dict) -> list:
-    return [vocab2idx_dict[token] for token in tk_seq]
 
 def rm_pad(seq, pad_idx):
     return [i for i in seq if i != pad_idx]
@@ -145,30 +146,82 @@ def save_check_point(step, epoch, model_state_dict, opt_state_dict, path):
 
 def rand_sample(srcs, tars, preds, src_dict, tar_dict, pred_dict): 
     src, tar, pred = random.choice([(src, tar, pred) for src, tar, pred in zip(srcs, tars, preds)])
-    src = index_to_vocab(src, src_dict)
-    tar = index_to_vocab(tar, tar_dict)
-    pred = index_to_vocab(pred, pred_dict)
+    src = translate(src, src_dict)
+    tar = translate(tar, tar_dict)
+    pred = translate(pred, pred_dict)
     return ' '.join(src), ' '.join(tar), ' '.join(pred)
 
-# a function to generate a sequence pair
-# given a label sequence
+# # a function to generate a sequence pair
+# # given a label sequence
+# def get_sequence_pair(y: list) -> list:
+#     x = y.copy()
+#     # get operator indexes
+#     operator_idxes = list(range(1, len(x), 2))
+#     # decide how many operators to remove
+#     num_idxes = np.random.choice(range(len(operator_idxes)+1))
+#     if num_idxes == 0:
+#         return x, ['<completion>', '<none>', '<none>']
+#     else:
+#         # decide operators to remove
+#         idxes_to_remove = sorted(np.random.choice(operator_idxes, num_idxes, replace=False))
+#         # generat possible ys
+#         ys = [['<insertion>', str(idxes_to_remove[i]-i), x[idxes_to_remove[i]]] 
+#               for i in range(len(idxes_to_remove))]
+#         # pick y randomly
+#         y = ys[np.random.choice(range(len(ys)))]
+#         # remove operators
+#         x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
+#         return x, y
+
 def get_sequence_pair(y: list) -> list:
+    # white space tokenization
     x = y.copy()
     # get operator indexes
-    operator_idxes = list(range(1, len(x), 2))
+    operator_idxes = np.arange(1, len(x), 2)[::-1]
     # decide how many operators to remove
     num_idxes = np.random.choice(range(len(operator_idxes)+1))
     if num_idxes == 0:
         return x, ['<completion>', '<none>', '<none>']
     else:
         # decide operators to remove
-        idxes_to_remove = sorted(np.random.choice(operator_idxes, num_idxes, replace=False))
-        # generat possible ys
-        ys = [['<insertion>', str(idxes_to_remove[i]-i), x[idxes_to_remove[i]]] 
-              for i in range(len(idxes_to_remove))]
-        # pick y randomly
-        y = ys[np.random.choice(range(len(ys)))]
-        # remove operators
+        idxes_to_remove = operator_idxes[:num_idxes]
+        y = ['<insertion>', str(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
         x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
         return x, y
 
+def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, end_idx): 
+    # vocab to index
+    xs = [translate(x, src_vocab2idx_dict) for x in xs]
+    ys = [translate(y, tgt_vocab2idx_dict) for y in ys]
+    # add start and end symbol 
+    xs = [torch.Tensor(x + [end_idx]) for x in xs]
+    ys = [torch.Tensor(y + [end_idx]) for y in ys] 
+    return xs, ys
+
+def padding(seqs, max_len=None):
+    # zero padding
+    seq_lens = [len(seq) for seq in seqs]
+    if max_len is None:
+        max_len = max(seq_lens)
+    padded_seqs = torch.zeros([len(seqs), max_len], dtype=torch.int64)
+    for i, seq in enumerate(seqs): 
+        seq_len = seq_lens[i]
+        padded_seqs[i, :seq_len] = seq[:seq_len]
+    return padded_seqs, seq_lens
+
+def recursive_infer(xs, x_lens, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config):
+    # detach from devices
+    xs = xs.cpu().detach().numpy() 
+    ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy()
+    # remove padding
+    xs = [rm_pad(x, config.pad_idx) for x in xs] 
+    # convert index to vocab
+    xs = [translate(x, src_idx2vocab_dict) for x in xs]
+    ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
+    for x, y_ in zip(xs, ys_): 
+        if y_[0] == '<insertion>' and y_[1].isdigit() and y_[2] in ['+', '-', '*', '/', '==']: 
+            x.insert(int(y_[1]), y_[2])
+            x = x[:-1]
+    xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
+    xs, x_lens = padding(xs, config.seq_len*2)
+    return xs.to(config.device), torch.Tensor(x_lens).to(config.device), 

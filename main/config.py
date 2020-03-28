@@ -10,12 +10,12 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.method = "end2end" # end2end, recursion
+        self.method = "recursion" # end2end, recursion
         self.model_name = "bi_lstm_rnn_att" # gru_rnn, lstm_rnn, bi_lstm_rnn_att
         self.load_check_point = False
         self.vocab_size = 10
         self.seq_len = 5 # input sequence length
-        self.data_size = 100000 # total data size
+        self.data_size = 30000 # total data size
         # path
         self.CURR_PATH = os.path.dirname(os.path.realpath(__file__))
         self.TASK_PATH = os.path.join('vocab_size_{}'.format(self.vocab_size), 
