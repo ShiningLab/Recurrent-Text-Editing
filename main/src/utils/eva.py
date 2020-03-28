@@ -15,7 +15,7 @@ class Evaluate():
         self.preds = predictions
         self.size = len(targets)
         # if hold equation
-        self.acc = self.get_acc()
+        self.eq_acc = self.get_eq_acc()
         # token-level accuracy
         self.token_acc = self.get_token_acc()
         # sequence-level accuracy
@@ -44,7 +44,7 @@ class Evaluate():
             return 1
         return 0
 
-    def get_acc(self):
+    def get_eq_acc(self):
         a = 0
         for i in range(self.size):
             tar = self.tars[i]

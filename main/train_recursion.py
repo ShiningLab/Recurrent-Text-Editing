@@ -256,8 +256,8 @@ class TextEditor(object):
                 # all_ys_ += ys_
 
         eva_matrix = Evaluate(self.config, all_ys, all_xs, self.src_idx2vocab_dict)
-        log_msg = 'Test Epoch:{} Total Step:{} Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
-            self.epoch, self.step, eva_matrix.acc, eva_matrix.token_acc, eva_matrix.seq_acc)
+        log_msg = 'Test Epoch:{} Total Step:{} Equation Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
+            self.epoch, self.step, eva_matrix.eq_acc, eva_matrix.token_acc, eva_matrix.seq_acc)
         self.test_log.append(log_msg)
         print(log_msg)
 
