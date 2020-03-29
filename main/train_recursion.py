@@ -218,12 +218,14 @@ class TextEditor(object):
     def test(self):
         print('\nTesting...')
         model = pick_model(self.config, 'recursion')
+        # local test
         # checkpoint_to_load =  torch.load(self.config.LOAD_POINT, map_location=self.config.device) 
         # print('Model restored from {}.'.format(self.config.LOAD_POINT))
         # step = checkpoint_to_load['step'] 
         # epoch = checkpoint_to_load['epoch'] 
         # model_state_dict = checkpoint_to_load['model'] 
         # model.load_state_dict(model_state_dict) 
+        # online test
         model.load_state_dict(self.model.state_dict())
         all_xs, all_ys = [], [] 
         # all_ys_ = []
@@ -233,7 +235,7 @@ class TextEditor(object):
         model.eval()
         with torch.no_grad():
             for xs, x_lens, ys in testset_generator: 
-                for i in range(self.config.seq_len):
+                for i in range(self.config.seq_len-1):
                     # print(x_lens.cpu().detach().numpy()[0])
                     # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                     # print(translate(ys.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
@@ -241,6 +243,8 @@ class TextEditor(object):
                     xs, x_lens = recursive_infer(xs, x_lens, ys_, 
                         self.src_idx2vocab_dict, self.src_vocab2idx_dict, 
                         self.tgt_idx2vocab_dict, self.config)
+                    # if i == 0:
+                    #     break
 
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len

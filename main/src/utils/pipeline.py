@@ -88,6 +88,8 @@ def pick_model(config, method):
         if method == 'recursion':
             return bi_lstm_rnn_att.RecursionModelGraph(config).to(config.device)
 
+def get_list_mean(l: list) -> float:
+    return sum(l) / len(l)
 
 def init_parameters(model): 
     for name, parameters in model.named_parameters(): 
@@ -111,11 +113,13 @@ def show_config(config, model):
     print('device:', config.device)
     print('use gpu:', config.use_gpu)
     print('train size:', config.train_size)
+    print('val size:', config.val_size)
     print('test size:', config.test_size)
     print('source vocab size:', config.src_vocab_size)
     print('target vocab size:', config.tgt_vocab_size)
     print('batch size:', config.batch_size)
     print('train batch:', config.train_batch)
+    print('val batch:', config.val_batch)
     print('test batch:', config.test_batch)
     print('\nif load check point:', config.load_check_point)
     if config.load_check_point: 
@@ -203,6 +207,7 @@ def padding(seqs, max_len=None):
     seq_lens = [len(seq) for seq in seqs]
     if max_len is None:
         max_len = max(seq_lens)
+    # default pad index is 0
     padded_seqs = torch.zeros([len(seqs), max_len], dtype=torch.int64)
     for i, seq in enumerate(seqs): 
         seq_len = seq_lens[i]
@@ -221,7 +226,6 @@ def recursive_infer(xs, x_lens, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt
     for x, y_ in zip(xs, ys_): 
         if y_[0] == '<insertion>' and y_[1].isdigit() and y_[2] in ['+', '-', '*', '/', '==']: 
             x.insert(int(y_[1]), y_[2])
-            x = x[:-1]
     xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
     xs, x_lens = padding(xs, config.seq_len*2)
     return xs.to(config.device), torch.Tensor(x_lens).to(config.device), 

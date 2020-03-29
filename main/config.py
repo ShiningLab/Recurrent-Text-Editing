@@ -10,12 +10,12 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.method = "recursion" # end2end, recursion
+        self.method = "end2end" # end2end, recursion
         self.model_name = "bi_lstm_rnn_att" # gru_rnn, lstm_rnn, bi_lstm_rnn_att
         self.load_check_point = False
         self.vocab_size = 10
         self.seq_len = 5 # input sequence length
-        self.data_size = 30000 # total data size
+        self.data_size = 10000 # total data size
         # path
         self.CURR_PATH = os.path.dirname(os.path.realpath(__file__))
         self.TASK_PATH = os.path.join('vocab_size_{}'.format(self.vocab_size), 
@@ -38,12 +38,12 @@ class Config():
         self.batch_size = 256
         self.shuffle = True
         self.drop_last = True
-        # training
+        # val
+        self.val_win_size = 12
+        # model
         self.learning_rate = 1e-4
         self.teacher_forcing_ratio = 0.5
         self.clipping_threshold = 5
-        self.test_epoch = 512
-        # model
         # embedding
         self.embedding_size = 512
         # encoder

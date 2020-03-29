@@ -23,10 +23,12 @@ class TextEditor(object):
     """docstring for TextEditor"""
     def __init__(self, config):
         super(TextEditor, self).__init__()
+        self.config = config
         self.step, self.epoch = 0, 0 # training step and epoch
         self.finished = False # training done flag
+        # equation accuracy
+        self.val_metric_list =  [float('-inf')]*self.config.val_win_size
         self.test_log = []
-        self.config = config
         self.setup_gpu()
         self.load_vocab()
         self.load_data()
@@ -46,29 +48,15 @@ class TextEditor(object):
         self.tgt_idx2vocab_dict = {v: k for k, v in self.tgt_vocab2idx_dict.items()}
         self.config.pad_idx = self.src_vocab2idx_dict[self.config.pad_symbol]
         self.config.start_idx = self.src_vocab2idx_dict[self.config.start_symbol]
-        self.config.end_idx = self.src_vocab2idx_dict[self.config.end_symbol]
+        self.config.end_idx = self.tgt_vocab2idx_dict[self.config.end_symbol]
         self.config.src_vocab_size = len(self.src_vocab2idx_dict)
         self.config.tgt_vocab_size = len(self.tgt_vocab2idx_dict)
 
     def end2end_collate_fn(self, data): 
         # a customized collate function used in the data loader 
-        def preprocess(xs, ys): 
-            # add start and end symbol 
-            xs = [torch.Tensor(x + [self.config.end_idx]) for x in xs]
-            ys = [torch.Tensor(y + [self.config.end_idx]) for y in ys] 
-            return xs, ys
-
-        def padding(seqs):
-            # zero padding
-            seq_lens = [len(seq) for seq in seqs]
-            padded_seqs = torch.zeros([len(seqs), max(seq_lens)], dtype=torch.int64)
-            for i, seq in enumerate(seqs): 
-                seq_len = seq_lens[i]
-                padded_seqs[i, :seq_len] = seq[:seq_len]
-            return padded_seqs, seq_lens
-
         xs, ys = zip(*data)
-        xs, ys = preprocess(xs, ys)
+        xs, ys = preprocess(
+            xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
         xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
@@ -87,6 +75,14 @@ class TextEditor(object):
               collate_fn=self.end2end_collate_fn, 
               shuffle=self.config.shuffle, 
               drop_last=self.config.drop_last)
+        # val data loader
+        self.val_dataset = Dataset(self.data_dict['val'])
+        self.valset_generator = torch_data.DataLoader(
+              self.val_dataset, 
+              batch_size=self.config.batch_size, 
+              collate_fn=self.end2end_collate_fn, 
+              shuffle=False, 
+              drop_last=False)
         # test data loader
         self.test_dataset = Dataset(self.data_dict['test'])
         self.testset_generator = torch_data.DataLoader(
@@ -95,8 +91,11 @@ class TextEditor(object):
               collate_fn=self.end2end_collate_fn, 
               shuffle=False,
               drop_last=False)
+        # update config
         self.config.train_size = len(self.train_dataset)
         self.config.train_batch = len(self.trainset_generator)
+        self.config.val_size = len(self.val_dataset)
+        self.config.val_batch = len(self.valset_generator)
         self.config.test_size = len(self.test_dataset)
         self.config.test_batch = len(self.testset_generator)
 
@@ -145,16 +144,18 @@ class TextEditor(object):
             xs, ys, ys_ = prepare_output(xs, ys, ys_, self.config.pad_idx)
             # evaluation
             eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict)
-            print('Train Epoch {} Total Step {} Loss:{:.4f} Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
-                self.epoch, self.step, loss, eva_matrix.acc, eva_matrix.token_acc, eva_matrix.seq_acc))
+            print('Train Epoch {} Total Step {} Loss:{:.4f} Equation Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
+                self.epoch, self.step, loss, eva_matrix.eq_acc, eva_matrix.token_acc, eva_matrix.seq_acc))
             # random sample to show
             src, tar, pred = rand_sample(xs, ys, ys_, 
                 self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
             print(' src: {}\n tar: {}\n pred: {}'.format(src, tar, pred))
-            # star testing
+            # val
+            self.validate()
+            # test
             self.test()
             # if done
-            if self.epoch >= self.config.test_epoch: 
+            if self.pre_val_metric > self.cur_val_metric:
                 # update flag
                 self.finished = True
                 # save log
@@ -164,30 +165,54 @@ class TextEditor(object):
 
             self.epoch += 1
 
+    def validate(self):
+        print('\nValidating...')
+        all_xs, all_ys, all_ys_ = [], [], []
+        valset_generator = tqdm(self.valset_generator)
+        self.model.eval()
+        with torch.no_grad():
+            for xs, x_lens, ys in valset_generator:
+                ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
+                xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
+                ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
+                ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
+                xs, ys, ys_ = prepare_output(xs, ys, ys_, self.config.pad_idx)
+                all_xs += xs
+                all_ys += ys 
+                all_ys_ += ys_
+
+        # evaluation
+        eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.tgt_idx2vocab_dict)
+        print('Val Epoch {} Total Step {} Equation Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
+            self.epoch, self.step, eva_matrix.eq_acc, eva_matrix.token_acc, eva_matrix.seq_acc))
+        # random sample to show
+        src, tar, pred = rand_sample(all_xs, all_ys, all_ys_, 
+            self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
+        print(' src: {}\n tar: {}\n pred: {}'.format(src, tar, pred))
+        # early stopping
+        self.val_metric_list.append(eva_matrix.eq_acc)
+        self.pre_val_metric = get_list_mean(self.val_metric_list[-self.config.val_win_size-1: -1])
+        self.cur_val_metric = get_list_mean(self.val_metric_list[-self.config.val_win_size:])
+
     def test(self):
         print('\nTesting...')
-        all_loss = 0
         all_xs, all_ys, all_ys_ = [], [], []
         testset_generator = tqdm(self.testset_generator)
         self.model.eval()
         with torch.no_grad():
             for xs, x_lens, ys in testset_generator:
                 ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
-                loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
-                loss = loss.item()
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
                 xs, ys, ys_ = prepare_output(xs, ys, ys_, self.config.pad_idx)
-                all_loss += loss
                 all_xs += xs
                 all_ys += ys 
                 all_ys_ += ys_
 
-        all_loss /= self.config.test_batch
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.tgt_idx2vocab_dict)
-        log_msg = 'Test Epoch:{} Total Step:{} Loss:{:.4f} Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
-            self.epoch, self.step, all_loss, eva_matrix.acc, eva_matrix.token_acc, eva_matrix.seq_acc)
+        log_msg = 'Test Epoch:{} Total Step:{} Equation Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
+            self.epoch, self.step, eva_matrix.eq_acc, eva_matrix.token_acc, eva_matrix.seq_acc)
         self.test_log.append(log_msg)
         print(log_msg)
         # random sample to show

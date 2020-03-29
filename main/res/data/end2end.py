@@ -41,13 +41,18 @@ class End2EndDataPreprocess(object):
         # load raw dataset
         raw_train_xs = load_txt(os.path.join(self.indir, 'train_x.txt'))
         raw_train_ys = load_txt(os.path.join(self.indir, 'train_y.txt'))
+        raw_val_xs = load_txt(os.path.join(self.indir, 'val_x.txt'))
+        raw_val_ys = load_txt(os.path.join(self.indir, 'val_y.txt'))
         raw_test_xs = load_txt(os.path.join(self.indir, 'test_x.txt'))
         raw_test_ys = load_txt(os.path.join(self.indir, 'test_y.txt'))
         # check data size
         print('train sample size', len(raw_train_xs))
         print('train label size', len(raw_train_ys))
+        print('val sample size', len(raw_val_xs))
+        print('val label size', len(raw_val_ys))
         print('test sample size', len(raw_test_xs))
         print('test label size', len(raw_test_ys))
+        # train
         # white space tokenization
         train_xs = white_space_tokenizer(raw_train_xs)
         train_ys = white_space_tokenizer(raw_train_ys)
@@ -60,7 +65,6 @@ class End2EndDataPreprocess(object):
         src_vocab2idx_dict = dict()
         src_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
         src_vocab2idx_dict['<s>'] = 1 # to mark the start of a sequence
-        src_vocab2idx_dict['</s>'] = 2 # to mark the end of a sequence
 
         i = len(src_vocab2idx_dict)
         for token in src_vocab_list:
@@ -81,19 +85,22 @@ class End2EndDataPreprocess(object):
         for token in tgt_vocab_list:
             tgt_vocab2idx_dict[token] = i
             i += 1
-        # convert vocabulary to index
-        train_xs = vocab_to_index(train_xs, src_vocab2idx_dict)
-        train_ys = vocab_to_index(train_ys, tgt_vocab2idx_dict)
+        # val
+        # white space tokenization
+        val_xs = white_space_tokenizer(raw_val_xs)
+        val_ys = white_space_tokenizer(raw_val_ys)
+        # test
         # white space tokenization
         test_xs = white_space_tokenizer(raw_test_xs)
         test_ys = white_space_tokenizer(raw_test_ys)
-        # convert vocabulary to index
-        test_xs = vocab_to_index(test_xs, src_vocab2idx_dict)
-        test_ys = vocab_to_index(test_ys, tgt_vocab2idx_dict)
         # combine data sets to a dict
         train_dict = {}
         train_dict['xs'] = train_xs
         train_dict['ys'] = train_ys
+
+        val_dict = {}
+        val_dict['xs'] = val_xs
+        val_dict['ys'] = val_ys
 
         test_dict = {}
         test_dict['xs'] = test_xs
@@ -101,6 +108,7 @@ class End2EndDataPreprocess(object):
 
         self.data_dict = dict()
         self.data_dict['train'] = train_dict
+        self.data_dict['val'] = val_dict
         self.data_dict['test'] = test_dict
 
         self.vocab_dict = dict()
