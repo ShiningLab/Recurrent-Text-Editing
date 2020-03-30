@@ -1,7 +1,7 @@
 # Recursive-Text-Editing: Data
 
 ## Introduction
-This folder contains the code to generate the raw dataset for the Mathematical Operator Insertion (MOI) domain. To solve the task, given a sequence of positive real numbers, a good learner should insert appropriate mathematical operators between two numbers to hold a valid equation. For example, the model should insert "+" between "1" and "1" and "==" between "1" and "2" for the sequence of positive real numbers "1 1 2" to hold a valid equation "1 + 1 == 2." The penultimate is always the equation mark "==" and the last one is always the value of the left side.
+This folder contains the code to generate the raw dataset for the Arithmetic Operators Insertion (AOI) domain. To solve the task, given a sequence of positive real numbers, a good learner should insert appropriate mathematical operators between two numbers to hold a valid equation. For example, the model should insert "+" between "1" and "1" and "==" between "1" and "2" for the sequence of positive real numbers "1 1 2" to hold a valid equation "1 + 1 == 2." The penultimate is always the equation mark "==" and the last one is always the value of the left side.
 
 ## Parameters
 + vocabulary size  
@@ -60,22 +60,27 @@ $ python generator.py --vocab_size 10 --seq_len 5 --data_size 10000
 ```
 
 ## Output
-
 ```
-real data size 10000 10000
+100%|█████████████████████████████████| 10000/10000 [00:12<00:00, 783.65it/s]
+train size 7000 (7000, 2)
+val size 1500 (1500, 2)
+test size 1500 (1500, 2)
 find output from raw/vocab_size_10/seq_len_5/data_size_10000
 ```
+
+
 ## Examples
-+ 4 0 4 3 0 $\rightarrow$ 4 * 0 * 4 * 3 == 0
-+ 1 2 8 6 1 $\rightarrow$ 1 - 2 + 8 - 6 == 1
-+ 3 8 5 8 8 $\rightarrow$ 3 - 8 + 5 + 8 == 8
-+ 0 9 1 9 9 $\rightarrow$ 0 * 9 + 1 * 9 == 9
++ 5 9 9 4 10 -> 5 + 9 / 9 + 4 == 10
++ 10 2 5 2 2 -> 10 / 2 / 5 * 2 == 2
++ 3 4 8 4 8 -> 3 * 4 - 8 + 4 == 8
 + etc.
+
 
 ## Note
 + The operators used to yield a valid equation are not unique, thus we can evaluate the performance by examining the equation in addition to token accuracy and sequence accuracy.
 + Using "==" instead of "=" as the equation mark is for the convenience to evaluate the equation by Python built-in function eval().
-+ etc.
++ There are a total of three sub sets for a generation, namely, train set, val set, and test set.
++ Number "0" and "1" are not involved to avoid one-to-many cases.
 
 
 ## Authors
