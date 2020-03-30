@@ -4,6 +4,7 @@ This repository is for the research on recursive methods to solve text editing t
 
 ## Methods
 + End2End - Done
++ End2End with Copy Attention
 + Tagging
 + Recursion - Done
 
