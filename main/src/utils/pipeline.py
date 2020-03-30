@@ -30,33 +30,19 @@ class Dataset(torch_data.Dataset):
       def __getitem__(self, idx):
             return self.xs[idx], self.ys[idx]
 
-# class Een2EndDataset(torch_data.Dataset):
-#       """Custom data.Dataset compatible with data.DataLoader."""
-#       def __init__(self, data_dict):
-#             super(Een2EndDataset, self).__init__()
-#             self.xs = data_dict['xs']
-#             self.ys = data_dict['ys']
-#             self.data_size = len(self.xs)
+class OfflineRecursionDataset(torch_data.Dataset):
+      """Custom data.Dataset compatible with data.DataLoader."""
+      def __init__(self, data_dict):
+            super(OfflineRecursionDataset, self).__init__()
+            self.xs = data_dict['xs']
+            self.ys_ = data_dict['ys_']
+            self.data_size = len(self.xs)
 
-#       def __len__(self):
-#             return self.data_size
+      def __len__(self):
+            return self.data_size
 
-#       def __getitem__(self, idx):
-#             return self.xs[idx], self.ys[idx]
-
-# class OfflineRecursionDataset(torch_data.Dataset):
-#       """Custom data.Dataset compatible with data.DataLoader."""
-#       def __init__(self, data_dict):
-#             super(OfflineRecursionDataset, self).__init__()
-#             self.xs = data_dict['xs']
-#             self.ys = data_dict['ys']
-#             self.data_size = len(self.xs)
-
-#       def __len__(self):
-#             return self.data_size
-
-#       def __getitem__(self, idx):
-#             return self.xs[idx], self.ys[idx]
+      def __getitem__(self, idx):
+            return self.xs[idx], self.ys_[idx]
 
 class OnlineRecursionDataset(torch_data.Dataset):
       """Custom data.Dataset compatible with data.DataLoader."""
@@ -208,7 +194,7 @@ def padding(seqs, max_len=None):
     if max_len is None:
         max_len = max(seq_lens)
     # default pad index is 0
-    padded_seqs = torch.zeros([len(seqs), max_len], dtype=torch.int64)
+    padded_seqs = torch.zeros([len(seqs), max_len]).long()
     for i, seq in enumerate(seqs): 
         seq_len = seq_lens[i]
         padded_seqs[i, :seq_len] = seq[:seq_len]
@@ -227,5 +213,7 @@ def recursive_infer(xs, x_lens, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt
         if y_[0] == '<insertion>' and y_[1].isdigit() and y_[2] in ['+', '-', '*', '/', '==']: 
             x.insert(int(y_[1]), y_[2])
     xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
+    # TODO: why padding leads to an incorrect prediction
     xs, x_lens = padding(xs, config.seq_len*2)
+    # xs, x_lens = padding(xs)
     return xs.to(config.device), torch.Tensor(x_lens).to(config.device), 

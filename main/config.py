@@ -10,7 +10,7 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.method = "end2end" # end2end, recursion
+        self.method = "recursion" # end2end, recursion
         self.model_name = "bi_lstm_rnn_att" # gru_rnn, lstm_rnn, bi_lstm_rnn_att
         self.load_check_point = False
         self.vocab_size = 10
@@ -29,7 +29,7 @@ class Config():
         if not os.path.exists(self.LOAD_POINT): self.load_check_point = False
         self.LOG_PATH = os.path.join(self.CURR_PATH, 'res/log/', self.method, self.TASK_PATH)
         if not os.path.exists(self.LOG_PATH): os.makedirs(self.LOG_PATH)
-        self.LOG_PATH = os.path.join(self.LOG_PATH,  '{}.txt'.format(self.model_name))
+        self.LOG_POINT = os.path.join(self.LOG_PATH,  '{}.txt'.format(self.model_name))
         # initialization
         self.pad_symbol = '<pad>'
         self.start_symbol = '<s>'
@@ -39,7 +39,7 @@ class Config():
         self.shuffle = True
         self.drop_last = True
         # val
-        self.val_win_size = 12
+        self.val_win_size = 512
         # model
         self.learning_rate = 1e-4
         self.teacher_forcing_ratio = 0.5
@@ -66,3 +66,12 @@ class RecursionConfig(Config):
     """docstring for RecursionConfig"""
     def __init__(self):
         super(RecursionConfig, self).__init__()
+        # data loader
+        self.online_learning = False
+        if self.online_learning:
+            self.SAVE_POINT = os.path.join(self.SAVE_PATH, 'online_{}.pt'.format(self.model_name))
+            self.LOG_POINT = os.path.join(self.LOG_PATH,  'online_{}.txt'.format(self.model_name))
+        else:
+            self.SAVE_POINT = os.path.join(self.SAVE_PATH, 'offline_{}.pt'.format(self.model_name))
+            self.LOG_POINT = os.path.join(self.LOG_PATH,  'offline_{}.txt'.format(self.model_name))
+        self.LOAD_POINT = self.SAVE_POINT

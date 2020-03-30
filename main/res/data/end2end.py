@@ -64,7 +64,7 @@ class End2EndDataPreprocess(object):
         # soruce vocabulary dictionary
         src_vocab2idx_dict = dict()
         src_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
-        src_vocab2idx_dict['<s>'] = 1 # to mark the start of a sequence
+        src_vocab2idx_dict['</s>'] = 1 # to mark the end of a sequence
 
         i = len(src_vocab2idx_dict)
         for token in src_vocab_list:
@@ -78,8 +78,9 @@ class End2EndDataPreprocess(object):
         # target vocabulary dictionary
         tgt_vocab2idx_dict = dict()
         tgt_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
-        tgt_vocab2idx_dict['<s>'] = 1 # to mark the start of a sequence
-        tgt_vocab2idx_dict['</s>'] = 2 # to mark the end of a sequence
+        tgt_vocab2idx_dict['</s>'] = 1 # to mark the end of a sequence
+        tgt_vocab2idx_dict['<s>'] = 2 # to mark the start of a sequence
+
 
         i = len(tgt_vocab2idx_dict)
         for token in tgt_vocab_list:

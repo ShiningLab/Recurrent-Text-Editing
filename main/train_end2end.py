@@ -47,13 +47,14 @@ class TextEditor(object):
         self.src_idx2vocab_dict = {v: k for k, v in self.src_vocab2idx_dict.items()}
         self.tgt_idx2vocab_dict = {v: k for k, v in self.tgt_vocab2idx_dict.items()}
         self.config.pad_idx = self.src_vocab2idx_dict[self.config.pad_symbol]
-        self.config.start_idx = self.src_vocab2idx_dict[self.config.start_symbol]
-        self.config.end_idx = self.tgt_vocab2idx_dict[self.config.end_symbol]
+        self.config.start_idx = self.tgt_vocab2idx_dict[self.config.start_symbol]
+        self.config.end_idx = self.src_vocab2idx_dict[self.config.end_symbol]
         self.config.src_vocab_size = len(self.src_vocab2idx_dict)
         self.config.tgt_vocab_size = len(self.tgt_vocab2idx_dict)
 
     def end2end_collate_fn(self, data): 
         # a customized collate function used in the data loader 
+        data.sort(key=len, reverse=True)
         xs, ys = zip(*data)
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
@@ -216,7 +217,7 @@ class TextEditor(object):
         self.test_log.append(log_msg)
         print(log_msg)
         # random sample to show
-        src, tar, pred = rand_sample(xs, ys, ys_, 
+        src, tar, pred = rand_sample(all_xs, all_ys, all_ys_, 
             self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
         print(' src: {}\n tar: {}\n pred: {}'.format(src, tar, pred))
 
