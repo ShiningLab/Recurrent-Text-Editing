@@ -90,4 +90,4 @@ Training...
 
 
 ## Authors
-* **Ning Shi** - ning.shi@learnable.ai
+* **Ning Shi** - mrshininnnnn@gmail.com
