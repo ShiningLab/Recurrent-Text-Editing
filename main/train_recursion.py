@@ -55,8 +55,8 @@ class TextEditor(object):
     def train_recursion_collate_fn(self, data):
         # a customized collate function used in the data loader 
         data.sort(key=len, reverse=True)
-        if self.config.online_learning:
-            xs, ys = zip(*[get_sequence_pair(y) for y in data])
+        if self.config.data_mode == 'online':
+            xs, ys = zip(*[recursion_online_generator(y) for y in data])
         else:
             xs, ys = zip(*data)
         xs, ys = preprocess(
@@ -87,7 +87,7 @@ class TextEditor(object):
         # read data dictionary from json file
         self.data_dict = load_json(self.config.DATA_PATH)
         # train data loader
-        if self.config.online_learning:
+        if self.config.data_mode == 'online':
             self.train_dataset = OnlineRecursionDataset(self.data_dict['train'])
         else:
             self.train_dataset = OfflineRecursionDataset(self.data_dict['train'])
@@ -98,7 +98,7 @@ class TextEditor(object):
               shuffle=self.config.shuffle, 
               drop_last=self.config.drop_last)
         # valid data loader
-        self.val_dataset = Dataset(self.data_dict['val'])
+        self.val_dataset = OfflineEnd2EndDataset(self.data_dict['val'])
         self.valset_generator = torch_data.DataLoader(
             self.val_dataset, 
             batch_size=self.config.batch_size, 
@@ -106,7 +106,7 @@ class TextEditor(object):
             shuffle=False, 
             drop_last=False)
         # test data loader
-        self.test_dataset = Dataset(self.data_dict['test'])
+        self.test_dataset = OfflineEnd2EndDataset(self.data_dict['test'])
         self.testset_generator = torch_data.DataLoader(
               self.test_dataset, 
               batch_size=self.config.batch_size, 

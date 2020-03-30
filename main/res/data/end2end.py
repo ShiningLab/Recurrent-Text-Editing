@@ -65,6 +65,12 @@ class End2EndDataPreprocess(object):
         src_vocab2idx_dict = dict()
         src_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
         src_vocab2idx_dict['</s>'] = 1 # to mark the end of a sequence
+        # for online training
+        src_vocab2idx_dict['+'] = 2
+        src_vocab2idx_dict['-'] = 3
+        src_vocab2idx_dict['*'] = 4
+        src_vocab2idx_dict['/'] = 5
+        src_vocab2idx_dict['=='] = 6
 
         i = len(src_vocab2idx_dict)
         for token in src_vocab_list:

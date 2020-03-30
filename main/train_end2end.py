@@ -52,13 +52,37 @@ class TextEditor(object):
         self.config.src_vocab_size = len(self.src_vocab2idx_dict)
         self.config.tgt_vocab_size = len(self.tgt_vocab2idx_dict)
 
-    def end2end_collate_fn(self, data): 
+    def train_end2end_collate_fn(self, data): 
+        # a customized collate function used in the data loader 
+        data.sort(key=len, reverse=True)
+        if self.config.data_mode == 'online': 
+            xs, ys = zip(*[end2end_online_generator(y) for  y in data])
+        else:
+            xs, ys = zip(*data)
+        xs, ys = preprocess(
+            xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
+        # TODO: why padding leads to an incorrect prediction
+        if self.config.data_mode == 'online': 
+            xs, x_lens = padding(xs, self.config.seq_len*2)
+        else:
+            xs, x_lens = padding(xs)
+        ys, _ = padding(ys)
+
+        return (xs.to(self.config.device), 
+            torch.Tensor(x_lens).to(self.config.device), 
+            ys.to(self.config.device))
+
+    def test_end2end_collate_fn(self, data): 
         # a customized collate function used in the data loader 
         data.sort(key=len, reverse=True)
         xs, ys = zip(*data)
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
-        xs, x_lens = padding(xs)
+        # TODO: why padding leads to an incorrect prediction
+        if self.config.data_mode == 'online': 
+            xs, x_lens = padding(xs, self.config.seq_len*2)
+        else:
+            xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
         return (xs.to(self.config.device), 
@@ -69,27 +93,30 @@ class TextEditor(object):
         # read data dictionary from json file
         self.data_dict = load_json(self.config.DATA_PATH)
         # train data loader
-        self.train_dataset = Dataset(self.data_dict['train'])
+        if self.config.data_mode == 'online': 
+            self.train_dataset = OnlineEnd2EndDataset(self.data_dict['train'])
+        else:
+            self.train_dataset = OfflineEnd2EndDataset(self.data_dict['train'])
         self.trainset_generator = torch_data.DataLoader(
               self.train_dataset, 
               batch_size=self.config.batch_size, 
-              collate_fn=self.end2end_collate_fn, 
+              collate_fn=self.train_end2end_collate_fn, 
               shuffle=self.config.shuffle, 
               drop_last=self.config.drop_last)
         # val data loader
-        self.val_dataset = Dataset(self.data_dict['val'])
+        self.val_dataset = OfflineEnd2EndDataset(self.data_dict['val'])
         self.valset_generator = torch_data.DataLoader(
               self.val_dataset, 
               batch_size=self.config.batch_size, 
-              collate_fn=self.end2end_collate_fn, 
+              collate_fn=self.test_end2end_collate_fn, 
               shuffle=False, 
               drop_last=False)
         # test data loader
-        self.test_dataset = Dataset(self.data_dict['test'])
+        self.test_dataset = OfflineEnd2EndDataset(self.data_dict['test'])
         self.testset_generator = torch_data.DataLoader(
               self.test_dataset, 
               batch_size=self.config.batch_size, 
-              collate_fn=self.end2end_collate_fn, 
+              collate_fn=self.test_end2end_collate_fn, 
               shuffle=False,
               drop_last=False)
         # update config
@@ -126,9 +153,11 @@ class TextEditor(object):
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
             for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
-                # print(x_lens.cpu().detach().numpy()[0])
-                # print(index_to_vocab(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
-                # print(index_to_vocab(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+            #     print(x_lens.cpu().detach().numpy()[0])
+            #     print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
+            #     print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+            #     break
+            # break
                 ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
                 loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
                 # update step
@@ -150,7 +179,7 @@ class TextEditor(object):
             # random sample to show
             src, tar, pred = rand_sample(xs, ys, ys_, 
                 self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
-            print(' src: {}\n tar: {}\n pred: {}'.format(src, tar, pred))
+            print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
             # val
             self.validate()
             # test
@@ -159,10 +188,14 @@ class TextEditor(object):
             if self.pre_val_metric > self.cur_val_metric:
                 # update flag
                 self.finished = True
-                # save log
-                save_txt(self.config.LOG_PATH, self.test_log)
-                # save model
-                save_check_point(self.step, self.epoch, self.model.state_dict, self.opt.state_dict, self.config.SAVE_POINT)
+            # save log
+            save_txt(self.config.LOG_POINT, self.test_log)
+            # save test result
+            test_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
+                x, y, y_) for x, y, y_ in zip(self.test_src, self.test_tgt, self.test_pred)]
+            save_txt(self.config.RESULT_POINT, test_result)
+            # save model
+            save_check_point(self.step, self.epoch, self.model.state_dict, self.opt.state_dict, self.config.SAVE_POINT)
 
             self.epoch += 1
 
@@ -189,7 +222,7 @@ class TextEditor(object):
         # random sample to show
         src, tar, pred = rand_sample(all_xs, all_ys, all_ys_, 
             self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
-        print(' src: {}\n tar: {}\n pred: {}'.format(src, tar, pred))
+        print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
         # early stopping
         self.val_metric_list.append(eva_matrix.eq_acc)
         self.pre_val_metric = get_list_mean(self.val_metric_list[-self.config.val_win_size-1: -1])
@@ -219,7 +252,11 @@ class TextEditor(object):
         # random sample to show
         src, tar, pred = rand_sample(all_xs, all_ys, all_ys_, 
             self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
-        print(' src: {}\n tar: {}\n pred: {}'.format(src, tar, pred))
+        print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
+
+        self.test_src = [' '.join(translate(x, self.src_idx2vocab_dict)) for x in all_xs]
+        self.test_tgt = [' '.join(translate(y, self.tgt_idx2vocab_dict)) for y in all_ys]
+        self.test_pred = [' '.join(translate(y_, self.tgt_idx2vocab_dict)) for y_ in all_ys_]
 
 def main(): 
     # initial everything

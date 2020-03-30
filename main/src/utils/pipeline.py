@@ -16,20 +16,33 @@ import numpy as np
 from ..models import gru_rnn, lstm_rnn, bi_lstm_rnn_att
 
 
-class Dataset(torch_data.Dataset):
-      """Custom data.Dataset compatible with data.DataLoader."""
-      def __init__(self, data_dict):
-            super(Dataset, self).__init__()
-            self.xs = data_dict['xs']
-            self.ys = data_dict['ys']
-            self.data_size = len(self.xs)
+class OfflineEnd2EndDataset(torch_data.Dataset):
+    """docstring for OfflineEnd2EndDataset"""
+    def __init__(self, data_dict):
+        super(OfflineEnd2EndDataset, self).__init__()
+        self.xs = data_dict['xs']
+        self.ys = data_dict['ys']
+        self.data_size = len(self.xs)
 
-      def __len__(self):
-            return self.data_size
+    def __len__(self): 
+        return self.data_size
 
-      def __getitem__(self, idx):
-            return self.xs[idx], self.ys[idx]
+    def __getitem__(self, idx): 
+        return self.xs[idx], self.ys[idx]
 
+class OnlineEnd2EndDataset(torch_data.Dataset):
+    """docstring for OnlineEnd2EndDataset"""
+    def __init__(self, data_dict):
+        super(OnlineEnd2EndDataset, self).__init__() 
+        self.ys = data_dict['ys'] 
+        self.data_size = len(self.ys)
+
+    def __len__(self): 
+        return self.data_size
+
+    def __getitem__(self, idx): 
+        return self.ys[idx]
+        
 class OfflineRecursionDataset(torch_data.Dataset):
       """Custom data.Dataset compatible with data.DataLoader."""
       def __init__(self, data_dict):
@@ -141,30 +154,23 @@ def rand_sample(srcs, tars, preds, src_dict, tar_dict, pred_dict):
     pred = translate(pred, pred_dict)
     return ' '.join(src), ' '.join(tar), ' '.join(pred)
 
-# # a function to generate a sequence pair
-# # given a label sequence
-# def get_sequence_pair(y: list) -> list:
-#     x = y.copy()
-#     # get operator indexes
-#     operator_idxes = list(range(1, len(x), 2))
-#     # decide how many operators to remove
-#     num_idxes = np.random.choice(range(len(operator_idxes)+1))
-#     if num_idxes == 0:
-#         return x, ['<completion>', '<none>', '<none>']
-#     else:
-#         # decide operators to remove
-#         idxes_to_remove = sorted(np.random.choice(operator_idxes, num_idxes, replace=False))
-#         # generat possible ys
-#         ys = [['<insertion>', str(idxes_to_remove[i]-i), x[idxes_to_remove[i]]] 
-#               for i in range(len(idxes_to_remove))]
-#         # pick y randomly
-#         y = ys[np.random.choice(range(len(ys)))]
-#         # remove operators
-#         x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
-#         return x, y
+def end2end_online_generator(y: list) -> list:
+    # make a copy
+    x = y.copy()
+    # get operator indexes
+    operator_idxes = np.arange(1, len(x), 2)[::-1]
+    # decide how many operators to remove
+    num_idxes = np.random.choice(range(len(operator_idxes)+1))
+    if num_idxes == 0:
+        return x, y
+    else:
+        # decide operators to remove
+        idxes_to_remove = operator_idxes[:num_idxes]
+        x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
+        return x, y
 
-def get_sequence_pair(y: list) -> list:
-    # white space tokenization
+def recursion_online_generator(y: list) -> list:
+    # make a copy
     x = y.copy()
     # get operator indexes
     operator_idxes = np.arange(1, len(x), 2)[::-1]
@@ -202,18 +208,18 @@ def padding(seqs, max_len=None):
 
 def recursive_infer(xs, x_lens, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config):
     # detach from devices
-    xs = xs.cpu().detach().numpy() 
-    ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy()
+    xs = xs.cpu().detach().numpy() # 112 </s> <pad>
+    ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # insert 1 +
     # remove padding
-    xs = [rm_pad(x, config.pad_idx) for x in xs] 
+    xs = [rm_pad(x, config.pad_idx) for x in xs] # 112 </s>
     # convert index to vocab
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
     for x, y_ in zip(xs, ys_): 
         if y_[0] == '<insertion>' and y_[1].isdigit() and y_[2] in ['+', '-', '*', '/', '==']: 
-            x.insert(int(y_[1]), y_[2])
+            x.insert(int(y_[1]), y_[2]) # 1 + 1 2 </s>
     xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
     # TODO: why padding leads to an incorrect prediction
     xs, x_lens = padding(xs, config.seq_len*2)
     # xs, x_lens = padding(xs)
-    return xs.to(config.device), torch.Tensor(x_lens).to(config.device), 
+    return xs.to(config.device), torch.Tensor(x_lens).to(config.device)
