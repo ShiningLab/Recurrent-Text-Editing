@@ -59,11 +59,11 @@ To prepare data for end2end models with:
 + sequence length - 5
 + data size - 10000
 ```
-$ python end2end.py --vocab_size 10 --seq_len 5 --data_size 10000
+$ python end2end.py --num_size 10 --seq_len 5 --data_size 10000
 ```
 To prepare data for recursion models with the same settings:
 ```
-$ python recursion.py --vocab_size 10 --seq_len 5 --data_size 10000
+$ python recursion.py --num_size 10 --seq_len 5 --data_size 10000
 ```
 
 

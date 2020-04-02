@@ -63,7 +63,7 @@ class TextEditor(object):
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
         # TODO: why padding leads to an incorrect prediction
         if self.config.data_mode == 'online': 
-            xs, x_lens = padding(xs, self.config.seq_len*2)
+            xs, x_lens = padding(xs, self.config.seq_len*2+1)
         else:
             xs, x_lens = padding(xs)
         ys, _ = padding(ys)
@@ -80,7 +80,7 @@ class TextEditor(object):
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
         # TODO: why padding leads to an incorrect prediction
         if self.config.data_mode == 'online': 
-            xs, x_lens = padding(xs, self.config.seq_len*2)
+            xs, x_lens = padding(xs, self.config.seq_len*2+1)
         else:
             xs, x_lens = padding(xs)
         ys, _ = padding(ys)
@@ -159,6 +159,8 @@ class TextEditor(object):
             #     break
             # break
                 ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
+            #     break
+            # break
                 loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
                 # update step
                 loss.backward()
@@ -188,14 +190,14 @@ class TextEditor(object):
             if self.pre_val_metric > self.cur_val_metric:
                 # update flag
                 self.finished = True
-            # save log
-            save_txt(self.config.LOG_POINT, self.test_log)
-            # save test result
-            test_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
-                x, y, y_) for x, y, y_ in zip(self.test_src, self.test_tgt, self.test_pred)]
-            save_txt(self.config.RESULT_POINT, test_result)
-            # save model
-            save_check_point(self.step, self.epoch, self.model.state_dict, self.opt.state_dict, self.config.SAVE_POINT)
+                # save log
+                save_txt(self.config.LOG_POINT, self.test_log)
+                # save test result
+                test_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
+                    x, y, y_) for x, y, y_ in zip(self.test_src, self.test_tgt, self.test_pred)]
+                save_txt(self.config.RESULT_POINT, test_result)
+                # save model
+                save_check_point(self.step, self.epoch, self.model.state_dict, self.opt.state_dict, self.config.SAVE_POINT)
 
             self.epoch += 1
 

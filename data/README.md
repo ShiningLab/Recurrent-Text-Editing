@@ -22,16 +22,10 @@ data/
 ├── generator.ipynb
 ├── generator.py
 ├── raw
-│   └── vocab_size_10
-│       ├── seq_len_1
-│       │   └── data_size_10
-│       │       ├── x.txt
-│       │       └── y.txt
-│       ├── seq_len_2
-│       ├── seq_len_3
-│   └── vocab_size_11
-│   └── vocab_size_12
-└── utilities
+│   ├── aoi
+│   └── lrec
+├── requirements.txt
+└── utils.py
 ```
 
 ## Dependencies
@@ -56,7 +50,7 @@ To generate a data with:
 + sequence length - 5
 + data size - 10000
 ```
-$ python generator.py --vocab_size 10 --seq_len 5 --data_size 10000
+$ python generator.py --num_size 10 --seq_len 5 --data_size 10000
 ```
 
 ## Output

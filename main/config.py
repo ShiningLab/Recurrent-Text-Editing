@@ -10,18 +10,20 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.method = 'end2end' # end2end, recursion
+        self.method = 'recursion' # end2end, recursion
         self.data_mode = 'online' # online, offline 
-        self.model_name = "bi_lstm_rnn_att" # gru_rnn, lstm_rnn, bi_lstm_rnn_att
+        # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
+        # bi_gru_rnn_att, bi_lstm_rnn_att
+        self.model_name = "bi_gru_rnn_att" 
         self.load_check_point = False
-        self.vocab_size = 10
+        self.num_size = 10 # numbers involved
         self.seq_len = 5 # input sequence length
         self.data_size = 10000 # total data size
         # I/O directory
         # current path
         self.CURR_PATH = os.path.dirname(os.path.realpath(__file__))
         # data task path
-        self.TASK_PATH = os.path.join('vocab_size_{}'.format(self.vocab_size), 
+        self.TASK_PATH = os.path.join('num_size_{}'.format(self.num_size), 
             'seq_len_{}'.format(self.seq_len), 'data_size_{}'.format(self.data_size))
         # data dictionary in json file
         self.DATA_PATH = os.path.join(self.CURR_PATH, 'res/data/', self.method, self.TASK_PATH, 'data.json')
@@ -46,7 +48,7 @@ class Config():
         self.start_symbol = '<s>'
         self.end_symbol = '</s>'
         # data loader
-        self.batch_size = 512
+        self.batch_size = 256
         self.shuffle = True
         self.drop_last = True
         # val

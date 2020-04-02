@@ -11,8 +11,8 @@ import torch
 import torch.nn as nn
 import random
 # private
-from .encoder import GRURNNEncoder
-from .decoder import GRURNNDecoder
+from .encoder import BiLSTMRNNEncoder
+from .decoder import LSTMRNNDecoder
 
 
 class End2EndModelGraph(nn.Module): 
@@ -20,8 +20,8 @@ class End2EndModelGraph(nn.Module):
     def __init__(self, config): 
         super(End2EndModelGraph, self).__init__() 
         self.config = config
-        self.encoder = GRURNNEncoder(config)
-        self.decoder = GRURNNDecoder(config)
+        self.encoder = BiLSTMRNNEncoder(config)
+        self.decoder = LSTMRNNDecoder(config)
 
     def forward(self, xs, x_lens, ys, teacher_forcing_ratio=0.5):
         # xs: batch_size, max_xs_seq_len
@@ -62,8 +62,8 @@ class RecursionModelGraph(nn.Module):
     def __init__(self, config): 
         super(RecursionModelGraph, self).__init__() 
         self.config = config
-        self.encoder = GRURNNEncoder(config)
-        self.decoder = GRURNNDecoder(config)
+        self.encoder = BiLSTMRNNEncoder(config)
+        self.decoder = LSTMRNNDecoder(config)
 
     def forward(self, xs, x_lens):
         # xs: batch_size, max_xs_seq_len

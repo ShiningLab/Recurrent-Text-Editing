@@ -15,43 +15,39 @@ from tqdm import tqdm
 from utils import *
 
 
-# the calss to generate dataset
-# for math operator intertion task
-class MathematicalOperatorInsertion(): 
-    """docstring for ClassName"""
-    def __init__(self, operators):
-        super(MathematicalOperatorInsertion, self).__init__()
+# the calss to generate dataset for
+# the Arithmetic Operators Insertion (AOI) probelm
+class ArithmeticOperatorInsertion(): 
+    """docstring for ArithmeticOperatorInsertion"""
+    def __init__(self, operators, num_size):
+        super(ArithmeticOperatorInsertion, self).__init__()
         self.operators = operators
+        self.pos_digits_pool = np.arange(2, num_size+2).tolist()
+        self.neg_digits_pool = np.arange(-num_size, -1).tolist()
+        self.digits_pool = self.pos_digits_pool + self.neg_digits_pool
     
-    def gen_base_dataset(self, vocab_size):
-        # return a base dataset
-        x = [str(i) for i in range(2, vocab_size+2)]
-        y = x.copy()
-        return x, y
-    
-    def gen_base_dict(self, vocab_size):
+    def gen_base_dict(self):
         # initialize a base value dict
-        return {str(i):[] for i in range(2, vocab_size+2)}
+        return {str(i):[] for i in self.pos_digits_pool}
         
-    def gen_operation(self, vocab_size, seq_len):
-        # a recursive function to geneate an operation
-        # given the number of digits to involve
-        a = np.random.choice(range(2, vocab_size+2))
+    def gen_operation(self, seq_len):
+        # a recursion to geneate  the left side of an equation
         if seq_len == 1:
+            a = np.random.choice(self.digits_pool)
             return [str(a)]
         else:
-            out_set = self.gen_operation(vocab_size, seq_len-1)
-            o = np.random.choice(self.operators)
-            b = np.random.choice(range(2, vocab_size+2))
-            return out_set + [o, str(b)]
+            left_side  = self.gen_operation(seq_len-1)
+            operator = np.random.choice(self.operators)
+            b = np.random.choice(self.pos_digits_pool)
+            return left_side + [operator, str(b)]
     
-    def gen_operation_list(self, vocab_size, seq_len, data_size):
+    def gen_operation_list(self, seq_len, data_size):
         # to control the data size
         operations_pool = set()
         for i in tqdm(range(data_size)):
             while True: 
                 # to avoid duplicates
-                operation = self.gen_operation(vocab_size, seq_len) 
+                operation = self.gen_operation(seq_len) 
                 if ''.join(operation) in operations_pool: 
                     continue
                 else:
@@ -59,7 +55,7 @@ class MathematicalOperatorInsertion():
                 # to avoid zero division error
                 try: 
                     # flost to int to string
-                    value = eval(' '.join(operation)) 
+                    value = eval(''.join(operation))
                     if value % 1 != 0.: 
                         continue
                     else:
@@ -76,24 +72,20 @@ class MathematicalOperatorInsertion():
         # given the value dict
         for v in self.value_dict:
             for x in self.value_dict[v]:
+                x = x[0].replace('-', '- ').split() + x[1:]
                 y = x + ["=="] + [v]
                 x = [i for i in y if i.isdigit()]
                 self.xs.append(' '.join(x))
                 self.ys.append(' '.join(y))
 
-    def generate(self, vocab_size, seq_len, data_size):
-        if seq_len == 0:
-            return self.gen_base_dataset(
-                vocab_size=vocab_size)
-        # input sequences, # output sequences
+    def generate(self, seq_len, data_size):
+        # input sequences, output sequences
         self.xs, self.ys = [], []
         # initialize a value dictionary
-        # to save the value of each sequence
-        self.value_dict = self.gen_base_dict(
-            vocab_size=vocab_size)
-        # insert operators and generate equations
+        # to save the value of each left side
+        self.value_dict = self.gen_base_dict()
+        # generate the left side of an equation
         self.gen_operation_list(
-            vocab_size=vocab_size, 
             seq_len=seq_len, 
             data_size=data_size)
         # generate relations given the value dict
@@ -122,10 +114,10 @@ def train_test_split(xs, ys):
     return trainset, valset, testset
 
 def save_dataset(trainset, valset, testset, args): 
-    outdir = 'raw' 
+    outdir = 'raw/aoi' 
     outdir = os.path.join(
         outdir, 
-        'vocab_size_{}'.format(args.vocab_size), 
+        'num_size_{}'.format(args.num_size), 
         'seq_len_{}'.format(args.seq_len), 
         'data_size_{}'.format(args.data_size))
     
@@ -144,10 +136,10 @@ def save_dataset(trainset, valset, testset, args):
 def main():
     # parameters
     parser = argparse.ArgumentParser()
-    parser.add_argument('--vocab_size', 
+    parser.add_argument('--num_size', 
         type=int, 
         required=True, 
-        help='define the number of positive real digits to involve')
+        help='define the number of real digits to involve')
     parser.add_argument('--seq_len', 
         type=int, 
         required=True, 
@@ -155,13 +147,12 @@ def main():
     parser.add_argument('--data_size', 
         type=int, 
         required=True, 
-        help='define the total data size, which can not exceed the space size')
+        help='define the total data size')
     args = parser.parse_args()
     # data generation 
     operators = ['+', '-', '*', '/'] #TODO
-    moi = MathematicalOperatorInsertion(operators) 
+    moi = ArithmeticOperatorInsertion(operators, args.num_size) 
     xs, ys = moi.generate(
-        vocab_size=args.vocab_size, 
         seq_len=args.seq_len-1, 
         data_size=args.data_size)
     trainset, valset, testset = train_test_split(xs, ys)

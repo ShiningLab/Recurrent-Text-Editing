@@ -75,7 +75,7 @@ class TextEditor(object):
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config.end_idx)
         # TODO: why padding leads to an incorrect prediction
-        xs, x_lens = padding(xs, self.config.seq_len*2)
+        xs, x_lens = padding(xs, self.config.seq_len*2+1)
         # xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
@@ -147,12 +147,15 @@ class TextEditor(object):
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
             for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
-            #     print(x_lens.cpu().detach().numpy()[0])
-            #     print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
-            #     print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
-            #     break
+                # for j in range(100):
+                #     print(x_lens.cpu().detach().numpy()[j])
+                #     print(translate(xs.cpu().detach().numpy()[j], self.src_idx2vocab_dict))
+                #     print(translate(ys.cpu().detach().numpy()[j], self.tgt_idx2vocab_dict))
+                # break
             # break
                 ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
+            #     break
+            # break
                 loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
                 # update step
                 loss.backward()
@@ -184,6 +187,10 @@ class TextEditor(object):
                 self.finished = True
                 # save log
                 save_txt(self.config.LOG_POINT, self.test_log)
+                # save test result
+                test_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
+                    x, y, y_) for x, y, y_ in zip(self.test_src, self.test_tgt, self.test_pred)]
+                save_txt(self.config.RESULT_POINT, test_result)
                 # save model
                 save_check_point(self.step, self.epoch, self.model.state_dict, self.opt.state_dict, self.config.SAVE_POINT)
 
@@ -199,7 +206,7 @@ class TextEditor(object):
         self.model.eval()
         with torch.no_grad():
             for xs, x_lens, ys in valset_generator:
-                for i in range(self.config.seq_len-1):
+                for i in range(self.config.seq_len):
                     # print(x_lens.cpu().detach().numpy()[0])
                     # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                     # print(translate(ys.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
@@ -240,12 +247,12 @@ class TextEditor(object):
         # model.load_state_dict(model_state_dict) 
         # online test
         model.load_state_dict(self.model.state_dict())
-        all_xs, all_ys = [], []
+        all_xs, all_ys, all_ys_ = [], [], []
         testset_generator = tqdm(self.testset_generator)
         model.eval()
         with torch.no_grad():
             for xs, x_lens, ys in testset_generator: 
-                for i in range(self.config.seq_len-1):
+                for i in range(self.config.seq_len):
                     # print(x_lens.cpu().detach().numpy()[0])
                     # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                     # print(translate(ys.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
@@ -261,6 +268,7 @@ class TextEditor(object):
                 xs, ys, ys_ = prepare_output(xs, ys, ys_, self.config.pad_idx)
                 all_xs += xs
                 all_ys += ys 
+                all_ys_ += ys_
 
         eva_matrix = Evaluate(self.config, all_ys, all_xs, self.src_idx2vocab_dict)
         log_msg = 'Test Epoch:{} Total Step:{} Equation Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
@@ -282,6 +290,10 @@ class TextEditor(object):
         #     print('y:', all_ys[i])
         #     print('y_', all_ys_[i])
         #     print()
+
+        self.test_src = [' '.join(translate(x, self.src_idx2vocab_dict)) for x in all_xs]
+        self.test_tgt = [' '.join(translate(y, self.src_idx2vocab_dict)) for y in all_ys]
+        self.test_pred = [' '.join(translate(y_, self.tgt_idx2vocab_dict)) for y_ in all_ys_]
 
 def main(): 
     # initial everything

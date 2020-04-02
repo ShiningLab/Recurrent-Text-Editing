@@ -13,12 +13,13 @@ from collections import Counter
 # private
 from utils import *
 
+
 class RecursionDataPreprocess(object):
     """docstring for RecursionDataPreprocess"""
-    def __init__(self, vocab_size, seq_len, data_size):
+    def __init__(self, num_size, seq_len, data_size):
         super(RecursionDataPreprocess, self).__init__()
         self.method = 'recursion'
-        self.vocab_size = vocab_size
+        self.num_size = num_size
         self.seq_len = seq_len
         self.data_size = data_size
         self.init_paths()
@@ -27,16 +28,16 @@ class RecursionDataPreprocess(object):
 
     def init_paths(self):
         # load path
-        self.indir = 'raw'
+        self.indir = 'raw/aoi'
         self.indir = os.path.join(
             self.indir, 
-            'vocab_size_{}'.format(self.vocab_size), 
+            'num_size_{}'.format(self.num_size), 
             'seq_len_{}'.format(self.seq_len), 
             'data_size_{}'.format(self.data_size))
         # save path
         self.outdir = os.path.join(
             self.method, 
-            'vocab_size_{}'.format(self.vocab_size), 
+            'num_size_{}'.format(self.num_size), 
             'seq_len_{}'.format(self.seq_len), 
             'data_size_{}'.format(self.data_size))
         if not os.path.exists(self.outdir): os.makedirs(self.outdir)
@@ -126,13 +127,12 @@ class RecursionDataPreprocess(object):
         print('Processed Data saved under {}'.format(self.outdir))
 
 def main(): 
-    
     # parameters
     parser = argparse.ArgumentParser()
-    parser.add_argument('--vocab_size', 
+    parser.add_argument('--num_size', 
         type=int, 
         required=True, 
-        help='define the number of positive real digits to involve')
+        help='define the number of real digits to involve')
     parser.add_argument('--seq_len', 
         type=int, 
         required=True, 
@@ -140,11 +140,11 @@ def main():
     parser.add_argument('--data_size', 
         type=int, 
         required=True, 
-        help='define the total data size, which can not exceed the space size')
+        help='define the total data size')
     args = parser.parse_args()
     # data preprocess
     RDP = RecursionDataPreprocess(
-        vocab_size=args.vocab_size, 
+        num_size=args.num_size, 
         seq_len=args.seq_len, 
         data_size=args.data_size) 
     

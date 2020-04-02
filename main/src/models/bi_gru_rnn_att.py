@@ -5,14 +5,13 @@ __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
 
-# dependency
 # public
 import torch
 import torch.nn as nn
 import random
 # private
-from .encoder import GRURNNEncoder
-from .decoder import GRURNNDecoder
+from .encoder import BiGRURNNEncoder
+from .decoder import AttBiGRURNNDecoder
 
 
 class End2EndModelGraph(nn.Module): 
@@ -20,16 +19,18 @@ class End2EndModelGraph(nn.Module):
     def __init__(self, config): 
         super(End2EndModelGraph, self).__init__() 
         self.config = config
-        self.encoder = GRURNNEncoder(config)
-        self.decoder = GRURNNDecoder(config)
+        self.encoder = BiGRURNNEncoder(config)
+        self.decoder = AttBiGRURNNDecoder(config)
 
     def forward(self, xs, x_lens, ys, teacher_forcing_ratio=0.5):
         # xs: batch_size, max_xs_seq_len
+        # x_lens: batch_size
         # ys: batch_size, max_ys_seq_len
         batch_size = xs.shape[0]
         max_ys_seq_len = ys.shape[1]
         # encoder_output: batch_size, max_xs_seq_len, en_hidden_size
-        # decoder_hidden: 1, batch_size, en_hidden_size
+        # decoder_hidden: (h, c)
+        # h, c: 1, batch_size, en_hidden_size
         encoder_output, decoder_hidden = self.encoder(xs)
         # batch_size
         decoder_input = torch.empty(
@@ -46,8 +47,10 @@ class End2EndModelGraph(nn.Module):
         # greedy search with teacher forcing
         for i in range(max_ys_seq_len):
             # decoder_output: batch_size, vocab_size
-            # decoder_hidden: 1, batch_size, de_hidden_size
-            decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
+            # decoder_hidden: (h, c)
+            # h, c: 1, batch_size, en_hidden_size
+            decoder_output, decoder_hidden = self.decoder(
+                decoder_input, decoder_hidden, encoder_output, x_lens)
             # batch_size, vocab_size
             decoder_outputs[i] = decoder_output
             # batch_size
@@ -55,15 +58,15 @@ class End2EndModelGraph(nn.Module):
             else decoder_output.max(1)[1]
         # batch_size, max_ys_seq_len, vocab_size
         return decoder_outputs.transpose(0, 1)
-
+        
 
 class RecursionModelGraph(nn.Module): 
     """docstring for RecursionModelGraph""" 
     def __init__(self, config): 
         super(RecursionModelGraph, self).__init__() 
         self.config = config
-        self.encoder = GRURNNEncoder(config)
-        self.decoder = GRURNNDecoder(config)
+        self.encoder = BiGRURNNEncoder(config)
+        self.decoder = AttBiGRURNNDecoder(config)
 
     def forward(self, xs, x_lens):
         # xs: batch_size, max_xs_seq_len
@@ -71,7 +74,8 @@ class RecursionModelGraph(nn.Module):
         batch_size = xs.shape[0]
         max_ys_seq_len = 4 # action, position, token, EOS
         # encoder_output: batch_size, max_xs_seq_len, en_hidden_size
-        # decoder_hidden: 1, batch_size, en_hidden_size
+        # decoder_hidden: (h, c)
+        # h, c: 1, batch_size, en_hidden_size
         encoder_output, decoder_hidden = self.encoder(xs)
         # batch_size
         decoder_input = torch.empty(
@@ -87,12 +91,14 @@ class RecursionModelGraph(nn.Module):
             device=self.config.device)
         # greedy search with teacher forcing
         for i in range(max_ys_seq_len):
-            # batch_size, vocab_size
-            # num_layers*num_directions, batch_size, de_hidden_size
-            decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
+            # decoder_output: batch_size, vocab_size
+            # decoder_hidden: (h, c)
+            # h, c: 1, batch_size, en_hidden_size
+            decoder_output, decoder_hidden = self.decoder(
+                decoder_input, decoder_hidden, encoder_output, x_lens)
             # batch_size, vocab_size
             decoder_outputs[i] = decoder_output
-            # batch_size
+            # 1, batch_size
             decoder_input = decoder_output.max(1)[1]
         # batch_size, max_ys_seq_len, vocab_size
         return decoder_outputs.transpose(0, 1)

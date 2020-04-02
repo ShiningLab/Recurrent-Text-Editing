@@ -53,7 +53,7 @@ class End2EndModelGraph(nn.Module):
                 decoder_input, decoder_hidden, encoder_output, x_lens)
             # batch_size, vocab_size
             decoder_outputs[i] = decoder_output
-            # 1, batch_size
+            # batch_size
             decoder_input = ys[:, i] if random.random() < teacher_forcing_ratio \
             else decoder_output.max(1)[1]
         # batch_size, max_ys_seq_len, vocab_size

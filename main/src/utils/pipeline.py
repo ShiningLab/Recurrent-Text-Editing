@@ -13,7 +13,9 @@ import random
 import numpy as np
 
 # private
-from ..models import gru_rnn, lstm_rnn, bi_lstm_rnn_att
+from ..models import (gru_rnn, lstm_rnn, 
+    bi_gru_rnn, bi_lstm_rnn, 
+    bi_gru_rnn_att, bi_lstm_rnn_att)
 
 
 class OfflineEnd2EndDataset(torch_data.Dataset):
@@ -81,6 +83,21 @@ def pick_model(config, method):
             return lstm_rnn.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return lstm_rnn.RecursionModelGraph(config).to(config.device)
+    elif config.model_name == 'bi_gru_rnn':
+        if method == 'end2end':
+            return bi_gru_rnn.End2EndModelGraph(config).to(config.device)
+        elif method == 'recursion':
+            return bi_gru_rnn.RecursionModelGraph(config).to(config.device)
+    elif config.model_name == 'bi_lstm_rnn':
+        if method == 'end2end':
+            return bi_lstm_rnn.End2EndModelGraph(config).to(config.device)
+        elif method == 'recursion':
+            return bi_lstm_rnn.RecursionModelGraph(config).to(config.device)
+    elif config.model_name =='bi_gru_rnn_att':
+        if method == 'end2end':
+            return bi_gru_rnn_att.End2EndModelGraph(config).to(config.device)
+        if method == 'recursion':
+            return bi_gru_rnn_att.RecursionModelGraph(config).to(config.device)
     elif config.model_name =='bi_lstm_rnn_att':
         if method == 'end2end':
             return bi_lstm_rnn_att.End2EndModelGraph(config).to(config.device)
@@ -125,8 +142,8 @@ def show_config(config, model):
         print('Model restored from {}.'.format(config.LOAD_POINT))
         print()
 
-def translate(idx_seq: list, idx2vocab_dict: dict) -> list: 
-    return [idx2vocab_dict[idx] for idx in idx_seq]
+def translate(seq: list, trans_dict: dict) -> list: 
+    return [trans_dict[token] for token in seq]
 
 def rm_pad(seq, pad_idx):
     return [i for i in seq if i != pad_idx]
@@ -158,7 +175,7 @@ def end2end_online_generator(y: list) -> list:
     # make a copy
     x = y.copy()
     # get operator indexes
-    operator_idxes = np.arange(1, len(x), 2)[::-1]
+    operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
     # decide how many operators to remove
     num_idxes = np.random.choice(range(len(operator_idxes)+1))
     if num_idxes == 0:
@@ -173,7 +190,7 @@ def recursion_online_generator(y: list) -> list:
     # make a copy
     x = y.copy()
     # get operator indexes
-    operator_idxes = np.arange(1, len(x), 2)[::-1]
+    operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
     # decide how many operators to remove
     num_idxes = np.random.choice(range(len(operator_idxes)+1))
     if num_idxes == 0:
@@ -181,7 +198,9 @@ def recursion_online_generator(y: list) -> list:
     else:
         # decide operators to remove
         idxes_to_remove = operator_idxes[:num_idxes]
+        # generat label
         y = ['<insertion>', str(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
+        # generate sample
         x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
         return x, y
 
@@ -220,6 +239,6 @@ def recursive_infer(xs, x_lens, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt
             x.insert(int(y_[1]), y_[2]) # 1 + 1 2 </s>
     xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
     # TODO: why padding leads to an incorrect prediction
-    xs, x_lens = padding(xs, config.seq_len*2)
+    xs, x_lens = padding(xs, config.seq_len*2+1)
     # xs, x_lens = padding(xs)
     return xs.to(config.device), torch.Tensor(x_lens).to(config.device)

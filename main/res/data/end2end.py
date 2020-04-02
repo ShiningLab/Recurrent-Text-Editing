@@ -15,9 +15,9 @@ from utils import *
 
 class End2EndDataPreprocess(object):
     """docstring for End2EndDataPreprocess"""
-    def __init__(self, vocab_size, seq_len, data_size):
+    def __init__(self, num_size, seq_len, data_size):
         super(End2EndDataPreprocess, self).__init__()
-        self.vocab_size = vocab_size
+        self.num_size = num_size
         self.seq_len = seq_len
         self.data_size = data_size
         self.init_paths()
@@ -26,13 +26,13 @@ class End2EndDataPreprocess(object):
 
     def init_paths(self):
         # load path
-        indir = 'raw'
-        self.indir = os.path.join(indir, 'vocab_size_{}'.format(self.vocab_size), 
+        indir = 'raw/aoi'
+        self.indir = os.path.join(indir, 'num_size_{}'.format(self.num_size), 
             'seq_len_{}'.format(self.seq_len), 
             'data_size_{}'.format(self.data_size))
         # save path
         outdir = 'end2end'
-        self.outdir = os.path.join(outdir, 'vocab_size_{}'.format(self.vocab_size), 
+        self.outdir = os.path.join(outdir, 'num_size_{}'.format(self.num_size), 
             'seq_len_{}'.format(self.seq_len), 
             'data_size_{}'.format(self.data_size))
         if not os.path.exists(self.outdir): os.makedirs(self.outdir)
@@ -134,10 +134,10 @@ def main():
     
     # parameters
     parser = argparse.ArgumentParser()
-    parser.add_argument('--vocab_size', 
+    parser.add_argument('--num_size', 
         type=int, 
         required=True, 
-        help='define the number of positive real digits to involve')
+        help='define the number of real digits to involve')
     parser.add_argument('--seq_len', 
         type=int, 
         required=True, 
@@ -145,11 +145,11 @@ def main():
     parser.add_argument('--data_size', 
         type=int, 
         required=True, 
-        help='define the total data size, which can not exceed the space size')
+        help='define the total data size')
     args = parser.parse_args()
     # data preprocess
     E2EDP = End2EndDataPreprocess(
-        vocab_size=args.vocab_size, 
+        num_size=args.num_size, 
         seq_len=args.seq_len, 
         data_size=args.data_size) 
     
