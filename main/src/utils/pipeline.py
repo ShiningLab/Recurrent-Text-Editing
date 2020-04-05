@@ -335,13 +335,19 @@ def tagging_online_generator(y: list) -> list:
 
         return x, y_
 
-def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, end_idx): 
+def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, end_idx=None): 
     # vocab to index
     xs = [translate(x, src_vocab2idx_dict) for x in xs]
     ys = [translate(y, tgt_vocab2idx_dict) for y in ys]
-    # add end symbol 
-    xs = [torch.Tensor(x + [end_idx]) for x in xs]
-    ys = [torch.Tensor(y + [end_idx]) for y in ys] 
+    if end_idx is not None:
+        # add end symbol and save as tensor
+        xs = [torch.Tensor(x + [end_idx]) for x in xs]
+        ys = [torch.Tensor(y + [end_idx]) for y in ys] 
+    else:
+        # convert to tensor
+        xs = [torch.Tensor(x) for x in xs]
+        ys = [torch.Tensor(y) for y in ys] 
+
     return xs, ys
 
 def padding(seqs, max_len=None):
@@ -376,11 +382,11 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
                     x.insert(int(y_[1]), y_[2]) 
         xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
         # TODO: why padding leads to an incorrect prediction
-        xs, x_lens = padding(xs, config.seq_len*2+1)
+        xs, x_lens = padding(xs, config.seq_len*2)
         # xs, x_lens = padding(xs)
     # inference function for Number Sequence Sorting (NSS)
     elif config.data_src == 'nss': 
-        if np.array_equal(np.array(ys_)[:, 0], np.array(['-1']*len(ys_))):
+        if np.array_equal(np.array(ys_), np.full(np.array(ys_).shape, -1).astype(str)):
             done = True
         else:
             done = False

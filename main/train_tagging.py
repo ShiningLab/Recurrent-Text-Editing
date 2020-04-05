@@ -10,6 +10,7 @@ from torch.utils import data as torch_data
 
 import os
 from tqdm import tqdm
+from datetime import datetime
 
 # private
 from config import TaggingConfig
@@ -22,7 +23,11 @@ from src.utils.pipeline import *
 class TextEditor(object):
     """docstring for TextEditor"""
     def __init__(self, config):
-        super(TextEditor, self).__init__()
+        super(TextEditor, self).__init__() 
+        self.start_time = datetime.now() 
+        self.val_key_metric = float('-inf') 
+        self.val_log = ['Start Time: {}'.format(self.start_time)] 
+        self.test_log = self.val_log.copy() 
         self.config = config
         self.step, self.epoch = 0, 0 # training step and epoch
         self.finished = False # training done flag
@@ -173,11 +178,12 @@ class TextEditor(object):
             xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
             ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
             ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
-            xs, ys, ys_ = prepare_output(xs, ys, ys_, self.config.pad_idx)
+            xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
             # evaluation
             eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict)
-            print('Train Epoch {} Total Step {} Loss:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
-                self.epoch, self.step, loss, eva_matrix.token_acc, eva_matrix.seq_acc))
+            eva_msg = 'Train Epoch {} Total Step {} Loss:{:.4f} '.format(self.epoch, self.step, loss)
+            eva_msg += eva_matrix.eva_msg
+            print(eva_msg)
             # random sample to show
             src, tar, pred = rand_sample(xs, ys, ys_, 
                 self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
@@ -186,18 +192,25 @@ class TextEditor(object):
             self.validate()
             # test
             self.test()
-            # if done
-            if self.pre_val_metric > self.cur_val_metric:
+            # early stopping on the basis of validation result
+            if self.pre_val_metric >= self.cur_val_metric >= 0. or self.finished:
                 # update flag
                 self.finished = True
                 # save log
-                save_txt(self.config.LOG_POINT, self.test_log)
+                end_time = datetime.now()
+                self.val_log.append('\nEnd Time: {}'.format(end_time))
+                self.val_log.append('\nTotal Time: {}'.format(end_time-self.start_time))
+                save_txt(self.config.LOG_POINT.format('val'), self.val_log)
+                self.test_log += self.val_log[-2:]
+                save_txt(self.config.LOG_POINT.format('test'), self.test_log)
+                # save val result
+                val_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
+                    x, y, y_) for x, y, y_ in zip(self.val_src, self.val_tgt, self.val_pred)]
+                save_txt(self.config.RESULT_POINT.format('val'), val_result)
                 # save test result
                 test_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
                     x, y, y_) for x, y, y_ in zip(self.test_src, self.test_tgt, self.test_pred)]
-                save_txt(self.config.RESULT_POINT, test_result)
-                # save model
-                save_check_point(self.step, self.epoch, self.model.state_dict, self.opt.state_dict, self.config.SAVE_POINT)
+                save_txt(self.config.RESULT_POINT.format('test'), test_result)
 
             self.epoch += 1
 
@@ -212,7 +225,7 @@ class TextEditor(object):
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
-                xs, ys, ys_ = prepare_output(xs, ys, ys_, self.config.pad_idx)
+                xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
                 all_xs += xs
                 all_ys += ys 
                 all_ys_ += ys_
@@ -221,29 +234,47 @@ class TextEditor(object):
             self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict)
         # evaluation
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.src_idx2vocab_dict)
-        print('Val Epoch {} Total Step {} Equation Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
-            self.epoch, self.step, eva_matrix.eq_acc, eva_matrix.token_acc, eva_matrix.seq_acc))
+        eva_msg = 'Val Epoch {} Total Step {} '.format(self.epoch, self.step)
+        eva_msg += eva_matrix.eva_msg
+        print(eva_msg)
+        # record
+        self.val_log.append(eva_msg)
         # random sample to show
         src, tar, pred = rand_sample(all_xs, all_ys, all_ys_, 
             self.src_idx2vocab_dict, self.src_idx2vocab_dict, self.src_idx2vocab_dict)
         print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
         # early stopping
+        if eva_matrix.key_metric >= self.val_key_metric:
+            self.val_key_metric = eva_matrix.key_metric
+            # save model
+            save_check_point(self.step, self.epoch, self.model.state_dict, self.opt.state_dict, self.config.SAVE_POINT)
         self.val_metric_list.append(eva_matrix.eq_acc)
         self.pre_val_metric = get_list_mean(self.val_metric_list[-self.config.val_win_size-1: -1])
         self.cur_val_metric = get_list_mean(self.val_metric_list[-self.config.val_win_size:])
+        # save test output
+        self.val_src = [' '.join(translate(x, self.src_idx2vocab_dict)) for x in all_xs]
+        self.val_tgt = [' '.join(translate(y, self.src_idx2vocab_dict)) for y in all_ys]
+        self.val_pred = [' '.join(translate(y_, self.src_idx2vocab_dict)) for y_ in all_ys_]
 
     def test(self):
-        print('\nTesting...')
+        print('\nTesting...') 
+        model = pick_model(self.config, 'end2end')
+        # local test
+        checkpoint_to_load =  torch.load(self.config.LOAD_POINT, map_location=self.config.device) 
+        print('Model restored from {}.'.format(self.config.LOAD_POINT))
+        model.load_state_dict(checkpoint_to_load['model'] )
+        # online test
+        # model.load_state_dict(self.model.state_dict())
         all_xs, all_ys, all_ys_ = [], [], []
         testset_generator = tqdm(self.testset_generator)
-        self.model.eval()
+        model.eval()
         with torch.no_grad():
             for xs, x_lens, ys in testset_generator:
                 ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
-                xs, ys, ys_ = prepare_output(xs, ys, ys_, self.config.pad_idx)
+                xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
                 all_xs += xs
                 all_ys += ys 
                 all_ys_ += ys_
@@ -251,10 +282,11 @@ class TextEditor(object):
         all_ys_ = tagging_infer(all_xs, all_ys_, 
             self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict)
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.src_idx2vocab_dict)
-        log_msg = 'Test Epoch:{} Total Step:{} Equation Acc:{:.4f} Token Acc:{:.4f} Seq Acc:{:.4f}'.format(
-            self.epoch, self.step, eva_matrix.eq_acc, eva_matrix.token_acc, eva_matrix.seq_acc)
-        self.test_log.append(log_msg)
-        print(log_msg)
+        eva_msg = 'Test Epoch {} Total Step {} '.format(self.epoch, self.step)
+        eva_msg += eva_matrix.eva_msg
+        print(eva_msg)
+        # record
+        self.test_log.append(eva_msg)
         # random sample to show
         src, tar, pred = rand_sample(all_xs, all_ys, all_ys_, 
             self.src_idx2vocab_dict, self.src_idx2vocab_dict, self.src_idx2vocab_dict)

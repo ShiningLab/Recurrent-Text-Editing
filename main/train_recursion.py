@@ -29,11 +29,6 @@ class TextEditor(object):
         self.val_log = ['Start Time: {}'.format(self.start_time)]
         self.test_log = self.val_log.copy()
         self.config = config
-        # define the max inference step
-        if self.config.data_src == 'aoi':
-            self.max_infer_step = self.config.seq_len
-        elif self.config.data_src == 'nss':
-            self.max_infer_step = self.config.seq_len ** 2
         self.step, self.epoch = 0, 0 # training step and epoch
         self.finished = False # training done flag
         # equation accuracy
@@ -57,7 +52,6 @@ class TextEditor(object):
         self.tgt_idx2vocab_dict = {v: k for k, v in self.tgt_vocab2idx_dict.items()}
         self.config.pad_idx = self.src_vocab2idx_dict[self.config.pad_symbol]
         self.config.start_idx = self.tgt_vocab2idx_dict[self.config.start_symbol]
-        self.config.end_idx = self.tgt_vocab2idx_dict[self.config.end_symbol]
         self.config.src_vocab_size = len(self.src_vocab2idx_dict)
         self.config.tgt_vocab_size = len(self.tgt_vocab2idx_dict)
 
@@ -68,8 +62,9 @@ class TextEditor(object):
             xs, ys = zip(*[recursion_online_generator(self.config.data_src, d) for d in data])
         else:
             xs, ys = zip(*data)
+        # convert vocab to index tensor
         xs, ys = preprocess(
-            xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
+            xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict)
         xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
@@ -82,9 +77,9 @@ class TextEditor(object):
         data.sort(key=len, reverse=True)
         xs, ys = zip(*data)
         xs, ys = preprocess(
-            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config.end_idx)
+            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict)
         # TODO: why padding leads to an incorrect prediction
-        xs, x_lens = padding(xs, self.config.seq_len*2+1)
+        xs, x_lens = padding(xs, self.config.seq_len*2)
         # xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
@@ -232,7 +227,7 @@ class TextEditor(object):
                 # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # print(translate(ys.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # break
-                ys_,  _, _ = recursive_infer(xs, x_lens, model, self.max_infer_step, 
+                ys_,  _, _ = recursive_infer(xs, x_lens, model, self.config.max_infer_step, 
                     self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config)
                     # if i == 0:
                         # break
@@ -290,7 +285,7 @@ class TextEditor(object):
                 # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # print(translate(ys.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # break
-                ys_, _, _ = recursive_infer(xs, x_lens, model, self.max_infer_step, 
+                ys_, _, _ = recursive_infer(xs, x_lens, model, self.config.max_infer_step, 
                     self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config)
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len

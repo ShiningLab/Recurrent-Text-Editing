@@ -72,7 +72,7 @@ class RecursionModelGraph(nn.Module):
         # xs: batch_size, max_xs_seq_len
         # x_lens: batch_size
         batch_size = xs.shape[0]
-        max_ys_seq_len = 4 # action, position, token, EOS
+        max_ys_seq_len = self.config.tgt_seq_len
         # encoder_output: batch_size, max_xs_seq_len, en_hidden_size
         # decoder_hidden: (h, c)
         # h, c: 1, batch_size, en_hidden_size

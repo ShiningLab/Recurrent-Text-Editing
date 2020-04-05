@@ -63,6 +63,7 @@ class TextEditor(object):
             xs, ys = zip(*[end2end_online_generator(self.config.data_src, d) for  d in data])
         else:
             xs, ys = zip(*data)
+        # convert to index, add end symbol, and save as tensor
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
         # TODO: why padding leads to an incorrect prediction
@@ -80,6 +81,7 @@ class TextEditor(object):
         # a customized collate function used in the data loader 
         data.sort(key=len, reverse=True)
         xs, ys = zip(*data)
+        # convert to index, add end symbol, and save as tensor
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
         # TODO: why padding leads to an incorrect prediction
@@ -284,7 +286,6 @@ class TextEditor(object):
                 all_ys_ += ys_
 
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.tgt_idx2vocab_dict)
-        # eva_msg = 'Test Epoch {} Total Step {} '.format(self.epoch, self.step)
         eva_msg = 'Test Epoch {} Total Step {} '.format(self.epoch, self.step)
         eva_msg += eva_matrix.eva_msg
         print(eva_msg)

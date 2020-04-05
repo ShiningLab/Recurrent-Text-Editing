@@ -9,6 +9,7 @@ import numpy as np
 class Evaluate():
     """a class to process evaluation"""
     def __init__(self, config, targets, predictions, idx2vocab_dict, train=False): 
+        self.config = config
         self.idx2vocab_dict = idx2vocab_dict
         self.tars = targets
         self.preds = predictions
@@ -21,7 +22,7 @@ class Evaluate():
         self.key_metric = self.seq_acc
         # generate an evaluation message
         self.eva_msg = 'Token Acc:{:.4f} Seq Acc:{:.4f}'.format(self.token_acc, self.seq_acc)
-        if config.data_src == 'aoi' and not train:
+        if self.config.data_src == 'aoi' and not train:
             # if hold equation 
             self.eq_acc = self.get_eq_acc()
             # main metric for early stopping
@@ -29,18 +30,29 @@ class Evaluate():
             # generate an evaluation message
             self.eva_msg += ' Equation Acc:{:.4f}'.format(self.eq_acc)
 
-    def check_equation(self, tar, pred): 
-        tar_ans = self.idx2vocab_dict[tar[-2]]
-        pred = [self.idx2vocab_dict[i] for i in pred][:-1]
+    def check_equation(self, tgt, pred): 
+        # remove end symbol
+        if self.config.method in ['end2end', 'tagging']:
+            # remove end symbol
+            tgt = [t for t in tgt if t != self.config.end_idx]
+            pred = [p for p in pred if p != self.config.end_idx]
+        # e.g., ['3', '-', '3', '+', '9', '-', '3', '==', '6']
+        tgt = [self.idx2vocab_dict[t] for t in tgt]
+        # e.g., ['3', '-', '3', '+', '9', '+', '3', '==', '6']
+        pred = [self.idx2vocab_dict[p] for p in pred]
+        # e.g., ['3', '3', '9', '3', '6']
+        tgt_nums = [t for t in tgt if t.isdigit()]
+        # e.g., ['3', '3', '9', '3', '6']
+        pred_nums = [p for p in tgt if p.isdigit()]
         try:
-            pred_ans = pred[-1]
-            if pred_ans == tar_ans and eval(' '.join(pred)):
+            # eval('123') return 123
+            # eval('1 2 3') raise error
+            if tgt_nums == pred_nums and eval(' '.join(pred)):
                 return 1
             else:
                 return 0
         except:
             return 0
-        return 0
 
     def check_token(self, tar, pred):
         min_len = min([len(tar), len(pred)])
