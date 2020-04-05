@@ -11,8 +11,8 @@ class Config():
       def __init__(self): 
         # data source
         self.data_src = 'aoi' # aoi, nss
-        self.method = 'tagging' # end2end, recursion, tagging
-        self.data_mode = 'offline' # online, offline 
+        self.method = 'recursion' # end2end, recursion, tagging
+        self.data_mode = 'online' # online, offline 
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
         self.model_name = 'bi_lstm_rnn_att'
@@ -52,6 +52,7 @@ class Config():
         # initialization
         self.pad_symbol = '<pad>'
         self.start_symbol = '<s>'
+        self.end_symbol = '</s>'
         # data loader
         self.batch_size = 256
         self.shuffle = True
@@ -79,8 +80,7 @@ class End2EndConfig(Config):
     """docstring for End2EndConfig"""
     def __init__(self):
         super(End2EndConfig, self).__init__()
-        self.end_symbol = '</s>'
-
+    
 class RecursionConfig(Config):
     """docstring for RecursionConfig"""
     def __init__(self):
@@ -97,4 +97,3 @@ class TaggingConfig(Config):
     """docstring for TaggingConfig"""
     def __init__(self):
         super(TaggingConfig, self).__init__()
-        self.end_symbol = '</s>'

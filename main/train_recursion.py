@@ -62,9 +62,9 @@ class TextEditor(object):
             xs, ys = zip(*[recursion_online_generator(self.config.data_src, d) for d in data])
         else:
             xs, ys = zip(*data)
-        # convert vocab to index tensor
+        # convert to index, add end symbol, and save as tensor
         xs, ys = preprocess(
-            xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict)
+            xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config)
         xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
@@ -76,8 +76,9 @@ class TextEditor(object):
         # a customized collate function used in the data loader 
         data.sort(key=len, reverse=True)
         xs, ys = zip(*data)
+        # convert to index, add end symbol, and save as tensor
         xs, ys = preprocess(
-            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict)
+            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config)
         # TODO: why padding leads to an incorrect prediction
         xs, x_lens = padding(xs, self.config.seq_len*2)
         # xs, x_lens = padding(xs)
@@ -156,7 +157,7 @@ class TextEditor(object):
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
             for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
-            #     for j in range(100):
+                # for j in range(1):
             #         print(x_lens.cpu().detach().numpy()[j])
             #         print(translate(xs.cpu().detach().numpy()[j], self.src_idx2vocab_dict))
             #         print(translate(ys.cpu().detach().numpy()[j], self.tgt_idx2vocab_dict))

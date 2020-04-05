@@ -196,6 +196,7 @@ def rm_pads(srcs, tgts, preds, pad_idx):
     srcs = [rm_pad(src, pad_idx) for src in srcs] 
     tgts = [rm_pad(tgt, pad_idx) for tgt in tgts] 
     preds = [rm_pad(pred, pad_idx) for pred in preds] 
+    preds = [p[:len(t)] for p, t in zip(preds, tgts)]
     return srcs, tgts, preds
 
 def save_check_point(step, epoch, model_state_dict, opt_state_dict, path):
@@ -335,15 +336,15 @@ def tagging_online_generator(y: list) -> list:
 
         return x, y_
 
-def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, end_idx=None): 
+def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config): 
     # vocab to index
     xs = [translate(x, src_vocab2idx_dict) for x in xs]
     ys = [translate(y, tgt_vocab2idx_dict) for y in ys]
-    if end_idx is not None:
+    if config.method in ['end2end', 'tagging']:
         # add end symbol and save as tensor
-        xs = [torch.Tensor(x + [end_idx]) for x in xs]
-        ys = [torch.Tensor(y + [end_idx]) for y in ys] 
-    else:
+        xs = [torch.Tensor(x) for x in xs]
+        ys = [torch.Tensor(y + [config.end_idx]) for y in ys] 
+    elif config.method in ['recursion']: 
         # convert to tensor
         xs = [torch.Tensor(x) for x in xs]
         ys = [torch.Tensor(y) for y in ys] 
@@ -361,6 +362,13 @@ def padding(seqs, max_len=None):
         seq_len = seq_lens[i]
         padded_seqs[i, :seq_len] = seq[:seq_len]
     return padded_seqs, seq_lens
+
+def is_int(v):
+    try:
+        int(v)
+        return True
+    except:
+        return False
 
 def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config): 
     # detach from devices
@@ -386,15 +394,23 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
         # xs, x_lens = padding(xs)
     # inference function for Number Sequence Sorting (NSS)
     elif config.data_src == 'nss': 
-        if np.array_equal(np.array(ys_), np.full(np.array(ys_).shape, -1).astype(str)):
+        xs = np.array(xs)
+        ys_ = np.array(ys_)
+        if np.array_equal(ys_, np.full(ys_.shape, '-1')):
             done = True
         else:
             done = False
-            for i in range(len(xs)):
-                y_ = ys_[i]
-                if y_[0].isdigit():
-                    idx = int(y_[0])
-                    xs[i][idx], xs[i][idx+1] = xs[i][idx+1], xs[i][idx]
+            # ndarray inference
+            is_numeric = np.vectorize(is_int, otypes=[bool])
+            swap_idxes = np.arange(xs.shape[0])[np.where((is_numeric(ys_)) & (ys_!='-1'))[0]]
+            xs[swap_idxes, ys_[swap_idxes].T.astype(int)], xs[swap_idxes, ys_[swap_idxes].T.astype(int)+1] = \
+            xs[swap_idxes, ys_[swap_idxes].T.astype(int)+1], xs[swap_idxes, ys_[swap_idxes].T.astype(int)]
+            # for loop inference
+            # for i in range(len(xs)):
+            #     y_ = ys_[i]
+            #     if y_[0].isdigit():
+            #         idx = int(y_[0])
+            #         xs[i][idx], xs[i][idx+1] = xs[i][idx+1], xs[i][idx]
         xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
         xs, x_lens = padding(xs)
     return xs.to(config.device), torch.Tensor(x_lens).to(config.device), done

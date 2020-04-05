@@ -53,7 +53,7 @@ class TextEditor(object):
         self.tgt_idx2vocab_dict = {v: k for k, v in self.tgt_vocab2idx_dict.items()}
         self.config.pad_idx = self.src_vocab2idx_dict[self.config.pad_symbol]
         self.config.start_idx = self.tgt_vocab2idx_dict[self.config.start_symbol]
-        self.config.end_idx = self.src_vocab2idx_dict[self.config.end_symbol]
+        self.config.end_idx = self.tgt_vocab2idx_dict[self.config.end_symbol]
         self.config.src_vocab_size = len(self.src_vocab2idx_dict)
         self.config.tgt_vocab_size = len(self.tgt_vocab2idx_dict)
 
@@ -65,7 +65,7 @@ class TextEditor(object):
         else:
             xs, ys = zip(*data)
         xs, ys = preprocess(
-            xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config.end_idx)
+            xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config)
         # TODO: why padding leads to an incorrect prediction
         if self.config.data_mode == 'online': 
             xs, x_lens = padding(xs, self.config.seq_len*2+1)
@@ -82,7 +82,7 @@ class TextEditor(object):
         data.sort(key=len, reverse=True)
         xs, ys = zip(*data)
         xs, ys = preprocess(
-            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config.end_idx)
+            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config)
         # TODO: why padding leads to an incorrect prediction
         if self.config.data_mode == 'online': 
             xs, x_lens = padding(xs, self.config.seq_len*2+1)
