@@ -11,3 +11,7 @@ def save_txt(path: str, line_list:list) -> None:
         for line in line_list: 
             f.write(line + '\n') 
     f.close()
+
+def convert_to_str(seq:list) -> str:
+    seq = [str(number) for number in seq]
+    return ' '.join(seq) 

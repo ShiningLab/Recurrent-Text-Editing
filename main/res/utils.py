@@ -30,7 +30,8 @@ def parse_log(in_lines):
             if i in line:
                 i = line.split(i)[1].split()[0]
                 line_dict[key] = float(i)
-        out_lines.append(line_dict)
+        if len(line_dict) > 0:
+            out_lines.append(line_dict)
     return out_lines
 
 def show_plot(data_dict, colors, title, xlabel, ylabel, save_path, xticks=None, yticks=None, marker=False): 
@@ -43,7 +44,7 @@ def show_plot(data_dict, colors, title, xlabel, ylabel, save_path, xticks=None, 
                 marker='o', 
                 markersize= 12, 
                 color=color, 
-                linewidth=2, 
+                linewidth=1, 
                 label=key)
     else:
         for key, color in zip(data_dict, colors):
@@ -51,7 +52,7 @@ def show_plot(data_dict, colors, title, xlabel, ylabel, save_path, xticks=None, 
                 range(len(data_dict[key])) if yticks is None else yticks, 
                 data_dict[key], 
                 color=color, 
-                linewidth=2, 
+                linewidth=1, 
                 label=key)
         
     plt.title(save_path + ' | ' + title)

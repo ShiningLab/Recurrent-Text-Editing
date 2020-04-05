@@ -8,18 +8,26 @@ import numpy as np
 
 class Evaluate():
     """a class to process evaluation"""
-    def __init__(self, config, targets, predictions, idx2vocab_dict): 
-        self.config = config
+    def __init__(self, config, targets, predictions, idx2vocab_dict, train=False): 
         self.idx2vocab_dict = idx2vocab_dict
         self.tars = targets
         self.preds = predictions
         self.size = len(targets)
-        # if hold equation
-        self.eq_acc = self.get_eq_acc()
         # token-level accuracy
         self.token_acc = self.get_token_acc()
         # sequence-level accuracy
         self.seq_acc = self.get_seq_acc()
+        # main metric for early stopping
+        self.key_metric = self.seq_acc
+        # generate an evaluation message
+        self.eva_msg = 'Token Acc:{:.4f} Seq Acc:{:.4f}'.format(self.token_acc, self.seq_acc)
+        if config.data_src == 'aoi' and not train:
+            # if hold equation 
+            self.eq_acc = self.get_eq_acc()
+            # main metric for early stopping
+            self.key_metric = self.eq_acc
+            # generate an evaluation message
+            self.eva_msg += ' Equation Acc:{:.4f}'.format(self.eq_acc)
 
     def check_equation(self, tar, pred): 
         tar_ans = self.idx2vocab_dict[tar[-2]]

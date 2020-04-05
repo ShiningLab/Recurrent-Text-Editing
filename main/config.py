@@ -10,11 +10,12 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.method = 'recursion' # end2end, recursion
+        self.data_src = 'nss' # aoi, nss
+        self.method = 'recursion' # end2end, recursion, tagging
         self.data_mode = 'online' # online, offline 
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
-        self.model_name = "bi_gru_rnn_att" 
+        self.model_name = 'bi_lstm_rnn_att'
         self.load_check_point = False
         self.num_size = 10 # numbers involved
         self.seq_len = 5 # input sequence length
@@ -26,23 +27,28 @@ class Config():
         self.TASK_PATH = os.path.join('num_size_{}'.format(self.num_size), 
             'seq_len_{}'.format(self.seq_len), 'data_size_{}'.format(self.data_size))
         # data dictionary in json file
-        self.DATA_PATH = os.path.join(self.CURR_PATH, 'res/data/', self.method, self.TASK_PATH, 'data.json')
+        self.DATA_PATH = os.path.join(self.CURR_PATH, 'res/data/', 
+            self.data_src, self.method, self.TASK_PATH, 'data.json')
         # vocab dictionary in json file
-        self.VOCAB_PATH = os.path.join(self.CURR_PATH, 'res/data/', self.method, self.TASK_PATH, 'vocab.json')
+        self.VOCAB_PATH = os.path.join(self.CURR_PATH, 'res/data/', 
+            self.data_src, self.method, self.TASK_PATH, 'vocab.json')
         # path to save and load check point
-        self.SAVE_PATH = os.path.join(self.CURR_PATH, 'res/check_points/', self.data_mode, self.method, self.TASK_PATH)
+        self.SAVE_PATH = os.path.join(self.CURR_PATH, 'res/check_points/', 
+            self.data_src, self.data_mode, self.method, self.TASK_PATH)
         if not os.path.exists(self.SAVE_PATH): os.makedirs(self.SAVE_PATH)
         self.SAVE_POINT = os.path.join(self.SAVE_PATH, '{}.pt'.format(self.model_name))
         self.LOAD_POINT = self.SAVE_POINT
         if not os.path.exists(self.LOAD_POINT): self.load_check_point = False
         # path to save test log
-        self.LOG_PATH = os.path.join(self.CURR_PATH, 'res/log/', self.data_mode, self.method, self.TASK_PATH)
+        self.LOG_PATH = os.path.join(self.CURR_PATH, 'res/log/', 
+            self.data_src, self.data_mode, self.model_name, self.method, self.TASK_PATH)
         if not os.path.exists(self.LOG_PATH): os.makedirs(self.LOG_PATH)
-        self.LOG_POINT = os.path.join(self.LOG_PATH,  '{}.txt'.format(self.model_name))
+        self.LOG_POINT = os.path.join(self.LOG_PATH,  '{}.txt')
         # path to save test output
-        self.RESULT_PATH = os.path.join(self.CURR_PATH, 'res/result/', self.data_mode, self.method, self.TASK_PATH)
+        self.RESULT_PATH = os.path.join(self.CURR_PATH, 'res/result/', 
+            self.data_src, self.data_mode, self.model_name, self.method, self.TASK_PATH)
         if not os.path.exists(self.RESULT_PATH): os.makedirs(self.RESULT_PATH)
-        self.RESULT_POINT = os.path.join(self.RESULT_PATH, '{}.txt'.format(self.model_name))
+        self.RESULT_POINT = os.path.join(self.RESULT_PATH, '{}.txt')
         # initialization
         self.pad_symbol = '<pad>'
         self.start_symbol = '<s>'
@@ -79,3 +85,8 @@ class RecursionConfig(Config):
     """docstring for RecursionConfig"""
     def __init__(self):
         super(RecursionConfig, self).__init__()
+
+class TaggingConfig(Config):
+    """docstring for TaggingConfig"""
+    def __init__(self):
+        super(TaggingConfig, self).__init__()

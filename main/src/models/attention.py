@@ -60,9 +60,9 @@ class GRURNNDecoderAttention(nn.Module):
 
 
 class LSTMRNNDecoderAttention(nn.Module):
-    """docstring for RNNDecoderAttention"""
+    """docstring for LSTMRNNDecoderAttention"""
     def __init__(self, config):
-        super(RNNDecoderAttention, self).__init__()
+        super(LSTMRNNDecoderAttention, self).__init__()
         self.config = config
         self.attn = torch.nn.Linear(
             self.config.de_hidden_size*2+self.config.en_hidden_size, 
