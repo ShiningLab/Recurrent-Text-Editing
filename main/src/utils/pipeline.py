@@ -82,7 +82,10 @@ class OnlineRecursionDataset(torch_data.Dataset):
         if self.data_src == 'aoi':
             return self.ys[idx]
         elif self.data_src == 'nss':
-            return self.xs[idx]
+            # for swap sort
+            return self.xs[idx], self.ys[idx]
+            # for bubble sort
+            # return self.xs[idx]
 
 
 class OfflineTaggingDataset(torch_data.Dataset):
@@ -216,17 +219,33 @@ def rand_sample(srcs, tars, preds, src_dict, tar_dict, pred_dict):
     pred = translate(pred, pred_dict)
     return ' '.join(src), ' '.join(tar), ' '.join(pred)
 
+# for bubble sort
 def find_next_step_in_bubble_sort(seq): 
     n = len(seq) 
     for j in range(0, n-1):
         if seq[j] > seq[j+1]:
             return j
     return -1
-
+# for bubble sort
 def bubble_sort_step(seq, j): 
     # perform one bubble sort step
     seq[j], seq[j+1] = seq[j+1], seq[j] 
     return seq
+# for swap sort
+def find_src_index_to_swap(x: list, y: list) -> int:
+    if x == y:
+        return -1
+    else:
+        idx_to_swap = [i for i in range(len(x)) if x[i] != y[i]][0]
+        return idx_to_swap
+# for swap sort
+def find_tgt_index_to_swap(x: list, y: list, src_idx: int) -> int:
+    if src_idx == -1:
+        return -1
+    else:
+        tgt_num = y[src_idx]
+        idx_to_swap = [i for i in range(len(x)) if x[i]==tgt_num][-1]
+        return idx_to_swap
 
 def convert_to_int(seq:list) -> list:
     return [int(str_number) for str_number in seq]
@@ -254,18 +273,35 @@ def end2end_online_generator(data_src: str, data) -> list:
             return x, y
     # for Number Sequence Sorting (NSS)
     elif data_src == 'nss':
-        x, y = data # tuple of list
+        # for swap sort
+        x, y = data
         x = convert_to_int(x)
+        y = convert_to_int(y)
         xs = [x.copy()]
         while True:
-            j = find_next_step_in_bubble_sort(x)
-            if j == -1:
+            src_idx = find_src_index_to_swap(x, y) 
+            tgt_idx = find_tgt_index_to_swap(x, y, src_idx)
+            if src_idx == tgt_idx == -1:
                 break
-            x = bubble_sort_step(x, j)
+            x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
             xs.append(x.copy())
         index = np.random.choice(range(len(xs)))
         x = convert_to_str(xs[index])
+        y = convert_to_str(y)
         return x, y
+        # for bubble sort
+        # x, y = data # tuple of list
+        # x = convert_to_int(x)
+        # xs = [x.copy()]
+        # while True:
+        #     j = find_next_step_in_bubble_sort(x)
+        #     if j == -1:
+        #         break
+        #     x = bubble_sort_step(x, j)
+        #     xs.append(x.copy())
+        # index = np.random.choice(range(len(xs)))
+        # x = convert_to_str(xs[index])
+        # return x, y
 
 def recursion_online_generator(data_src: str, data: list) -> list:
     # online training data generation
@@ -290,21 +326,38 @@ def recursion_online_generator(data_src: str, data: list) -> list:
             return x, y
     # for Number Sequence Sorting (NSS)
     elif data_src == 'nss':
-        # make a copy
-        x = data.copy()
+        # for swap sort
+        x, y = data
         x = convert_to_int(x)
+        y = convert_to_int(y)
         xs = [x.copy()]
         ys_ = []
         while True:
-            y_ = find_next_step_in_bubble_sort(x)
-            ys_.append(y_)
-            if y_ == -1:
+            src_idx = find_src_index_to_swap(x, y) 
+            tgt_idx = find_tgt_index_to_swap(x, y, src_idx)
+            ys_.append([src_idx, tgt_idx])
+            if src_idx == tgt_idx == -1:
                 break
-            x = bubble_sort_step(x, y_)
+            x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
             xs.append(x.copy())
         index = np.random.choice(range(len(xs)))
         x = convert_to_str(xs[index])
-        y_ = [str(ys_[index])]
+        y_ = convert_to_str(ys_[index])
+        # for bubble sort
+        # x = data.copy()
+        # x = convert_to_int(x)
+        # xs = [x.copy()]
+        # ys_ = []
+        # while True:
+        #     y_ = find_next_step_in_bubble_sort(x)
+        #     ys_.append(y_)
+        #     if y_ == -1:
+        #         break
+        #     x = bubble_sort_step(x, y_)
+        #     xs.append(x.copy())
+        # index = np.random.choice(range(len(xs)))
+        # x = convert_to_str(xs[index])
+        # y_ = [str(ys_[index])]
         return x, y_
 
 def tagging_online_generator(y: list) -> list:
@@ -396,15 +449,28 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
     elif config.data_src == 'nss': 
         xs = np.array(xs)
         ys_ = np.array(ys_)
-        if np.array_equal(ys_, np.full(ys_.shape, '-1')):
+        is_numeric = np.vectorize(is_int, otypes=[bool])
+        # for swap sort
+        mask = np.logical_and(ys_ != '-1', is_numeric(ys_)).all(axis=-1)
+        if not mask.any():
             done = True
         else:
             done = False
             # ndarray inference
-            is_numeric = np.vectorize(is_int, otypes=[bool])
-            swap_idxes = np.arange(xs.shape[0])[np.where((is_numeric(ys_)) & (ys_!='-1'))[0]]
-            xs[swap_idxes, ys_[swap_idxes].T.astype(int)], xs[swap_idxes, ys_[swap_idxes].T.astype(int)+1] = \
-            xs[swap_idxes, ys_[swap_idxes].T.astype(int)+1], xs[swap_idxes, ys_[swap_idxes].T.astype(int)]
+            src_idxes = ys_[mask].astype(int)[:, 0] 
+            tgt_idxes = ys_[mask].astype(int)[:, 1]
+            xs[mask, src_idxes], xs[mask, tgt_idxes] = xs[mask, tgt_idxes], xs[mask, src_idxes] 
+        # for bubble sort
+        # if np.array_equal(ys_, np.full(ys_.shape, '-1')):
+        #     done = True
+        # else:
+        #     done = False
+        #     # ndarray inference
+        #     is_numeric = np.vectorize(is_int, otypes=[bool])
+        #     swap_idxes = np.arange(xs.shape[0])[np.where((is_numeric(ys_)) & (ys_!='-1'))[0]]
+        #     swap_ys_ = ys_[swap_idxes].T.astype(int)
+        #     xs[swap_idxes, swap_ys_], xs[swap_idxes, swap_ys_+1] = \
+        #     xs[swap_idxes, swap_ys_+1], xs[swap_idxes, swap_ys_]
             # for loop inference
             # for i in range(len(xs)):
             #     y_ = ys_[i]
@@ -452,11 +518,11 @@ def tagging_execution(x, y_):
             p.append(y_token)
     return p
 
-def tagging_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict):
+def tagging_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, end_symbol):
     # convert index to vocab
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
-    preds = [tagging_execution(x, y_) for x, y_ in zip(xs, ys_)]
+    preds = [tagging_execution(x, y_) + [end_symbol] for x, y_ in zip(xs, ys_)]
     # convert vocab to index
     return [translate(p, src_vocab2idx_dict) for p in preds]
 

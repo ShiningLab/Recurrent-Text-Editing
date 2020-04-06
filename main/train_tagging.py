@@ -180,7 +180,7 @@ class TextEditor(object):
             ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
             xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
             # evaluation
-            eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict)
+            eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict, True)
             eva_msg = 'Train Epoch {} Total Step {} Loss:{:.4f} '.format(self.epoch, self.step, loss)
             eva_msg += eva_matrix.eva_msg
             print(eva_msg)
@@ -231,7 +231,7 @@ class TextEditor(object):
                 all_ys_ += ys_
 
         all_ys_ = tagging_infer(all_xs, all_ys_, 
-            self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict)
+            self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config.end_symbol)
         # evaluation
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.src_idx2vocab_dict)
         eva_msg = 'Val Epoch {} Total Step {} '.format(self.epoch, self.step)
@@ -270,7 +270,7 @@ class TextEditor(object):
         model.eval()
         with torch.no_grad():
             for xs, x_lens, ys in testset_generator:
-                ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
+                ys_ = model(xs, x_lens, ys, teacher_forcing_ratio=0.)
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
@@ -280,7 +280,7 @@ class TextEditor(object):
                 all_ys_ += ys_
 
         all_ys_ = tagging_infer(all_xs, all_ys_, 
-            self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict)
+            self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config.end_symbol)
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.src_idx2vocab_dict)
         eva_msg = 'Test Epoch {} Total Step {} '.format(self.epoch, self.step)
         eva_msg += eva_matrix.eva_msg

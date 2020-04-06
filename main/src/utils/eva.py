@@ -19,7 +19,7 @@ class Evaluate():
         # sequence-level accuracy
         self.seq_acc = self.get_seq_acc()
         # main metric for early stopping
-        self.key_metric = self.seq_acc
+        self.key_metric = self.token_acc
         # generate an evaluation message
         self.eva_msg = 'Token Acc:{:.4f} Seq Acc:{:.4f}'.format(self.token_acc, self.seq_acc)
         if self.config.data_src == 'aoi' and not train:
