@@ -409,15 +409,15 @@ def tagging_online_generator(y: list) -> list:
 
         return x, y_
 
-def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config): 
+def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config, train=True): 
     # vocab to index
     xs = [translate(x, src_vocab2idx_dict) for x in xs]
     ys = [translate(y, tgt_vocab2idx_dict) for y in ys]
-    if config.method in ['end2end', 'tagging']:
+    if config.method in ['end2end', 'tagging'] and train:
         # add end symbol and save as tensor
         xs = [torch.Tensor(x) for x in xs]
         ys = [torch.Tensor(y + [config.end_idx]) for y in ys] 
-    elif config.method in ['recursion']: 
+    else:
         # convert to tensor
         xs = [torch.Tensor(x) for x in xs]
         ys = [torch.Tensor(y) for y in ys] 
@@ -538,11 +538,11 @@ def tagging_execution(x, y_):
             p.append(y_token)
     return p
 
-def tagging_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, end_symbol):
+def tagging_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict):
     # convert index to vocab
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
-    preds = [tagging_execution(x, y_) + [end_symbol] for x, y_ in zip(xs, ys_)]
+    preds = [tagging_execution(x, y_) for x, y_ in zip(xs, ys_)]
     # convert vocab to index
     return [translate(p, src_vocab2idx_dict) for p in preds]
 

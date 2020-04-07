@@ -82,7 +82,7 @@ class TextEditor(object):
         data.sort(key=len, reverse=True)
         xs, ys = zip(*data)
         xs, ys = preprocess(
-            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config)
+            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config, False)
         # TODO: why padding leads to an incorrect prediction
         if self.config.data_mode == 'online': 
             xs, x_lens = padding(xs, self.config.seq_len*2+1)
@@ -151,7 +151,7 @@ class TextEditor(object):
         self.config.num_parameters = count_parameters(self.model)
 
     def train(self):
-        show_config(self.config, self.model)
+        general_info = show_config(self.config, self.model)
         self.val_log.append(general_info)
         self.test_log.append(general_info)
         while not self.finished:
@@ -233,7 +233,7 @@ class TextEditor(object):
                 all_ys_ += ys_
 
         all_ys_ = tagging_infer(all_xs, all_ys_, 
-            self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config.end_symbol)
+            self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict)
         # evaluation
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.src_idx2vocab_dict)
         eva_msg = 'Val Epoch {} Total Step {} '.format(self.epoch, self.step)
@@ -282,7 +282,7 @@ class TextEditor(object):
                 all_ys_ += ys_
 
         all_ys_ = tagging_infer(all_xs, all_ys_, 
-            self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config.end_symbol)
+            self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict)
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.src_idx2vocab_dict)
         eva_msg = 'Test Epoch {} Total Step {} '.format(self.epoch, self.step)
         eva_msg += eva_matrix.eva_msg
