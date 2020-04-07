@@ -30,7 +30,7 @@ class End2EndModelGraph(nn.Module):
         max_ys_seq_len = ys.shape[1]
         # encoder_output: batch_size, max_xs_seq_len, en_hidden_size
         # decoder_hidden: 1, batch_size, en_hidden_size
-        encoder_output, decoder_hidden = self.encoder(xs)
+        encoder_output, decoder_hidden = self.encoder(xs, x_lens)
         # batch_size
         decoder_input = torch.empty(
             batch_size, 
@@ -72,7 +72,7 @@ class RecursionModelGraph(nn.Module):
         max_ys_seq_len = 4 # action, position, token, EOS
         # encoder_output: batch_size, max_xs_seq_len, en_hidden_size
         # decoder_hidden: 1, batch_size, en_hidden_size
-        encoder_output, decoder_hidden = self.encoder(xs)
+        encoder_output, decoder_hidden = self.encoder(xs, x_lens)
         # batch_size
         decoder_input = torch.empty(
             batch_size, 

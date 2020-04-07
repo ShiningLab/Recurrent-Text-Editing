@@ -152,6 +152,8 @@ class TextEditor(object):
 
     def train(self):
         show_config(self.config, self.model)
+        self.val_log.append(general_info)
+        self.test_log.append(general_info)
         while not self.finished:
             print('\nTraining...')
             self.model.train()

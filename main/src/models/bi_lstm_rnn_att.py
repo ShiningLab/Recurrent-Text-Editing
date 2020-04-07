@@ -5,6 +5,7 @@ __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
 
+# dependency
 # public
 import torch
 import torch.nn as nn
@@ -31,7 +32,7 @@ class End2EndModelGraph(nn.Module):
         # encoder_output: batch_size, max_xs_seq_len, en_hidden_size
         # decoder_hidden: (h, c)
         # h, c: 1, batch_size, en_hidden_size
-        encoder_output, decoder_hidden = self.encoder(xs)
+        encoder_output, decoder_hidden = self.encoder(xs, x_lens)
         # batch_size
         decoder_input = torch.empty(
             batch_size, 
@@ -76,7 +77,7 @@ class RecursionModelGraph(nn.Module):
         # encoder_output: batch_size, max_xs_seq_len, en_hidden_size
         # decoder_hidden: (h, c)
         # h, c: 1, batch_size, en_hidden_size
-        encoder_output, decoder_hidden = self.encoder(xs)
+        encoder_output, decoder_hidden = self.encoder(xs, x_lens)
         # batch_size
         decoder_input = torch.empty(
             batch_size, 
