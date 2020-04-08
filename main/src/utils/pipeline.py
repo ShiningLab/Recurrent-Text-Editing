@@ -457,9 +457,6 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
     if config.model_name == 'transformer':
         # remove start symbol
         ys_ = [y_[1:] for y_ in ys_]
-    else:
-        # remove end symbol
-        ys_ = [y_[:-1] for y_ in ys_]
     # convert index to vocab
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
