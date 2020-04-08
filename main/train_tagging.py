@@ -82,7 +82,7 @@ class TextEditor(object):
         data.sort(key=len, reverse=True)
         xs, ys = zip(*data)
         xs, ys = preprocess(
-            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config)
+            xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config, False)
         # TODO: why padding leads to an incorrect prediction
         if self.config.data_mode == 'online': 
             xs, x_lens = padding(xs, self.config.seq_len*2+1)
@@ -151,7 +151,9 @@ class TextEditor(object):
         self.config.num_parameters = count_parameters(self.model)
 
     def train(self):
-        show_config(self.config, self.model)
+        general_info = show_config(self.config, self.model)
+        self.val_log.append(general_info)
+        self.test_log.append(general_info)
         while not self.finished:
             print('\nTraining...')
             self.model.train()
@@ -180,7 +182,7 @@ class TextEditor(object):
             ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
             xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
             # evaluation
-            eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict)
+            eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict, True)
             eva_msg = 'Train Epoch {} Total Step {} Loss:{:.4f} '.format(self.epoch, self.step, loss)
             eva_msg += eva_matrix.eva_msg
             print(eva_msg)
@@ -270,7 +272,7 @@ class TextEditor(object):
         model.eval()
         with torch.no_grad():
             for xs, x_lens, ys in testset_generator:
-                ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
+                ys_ = model(xs, x_lens, ys, teacher_forcing_ratio=0.)
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len

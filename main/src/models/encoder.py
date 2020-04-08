@@ -28,14 +28,25 @@ class GRURNNEncoder(nn.Module):
             bidirectional=False)
         self.gru_dropout = nn.Dropout(self.config.en_drop_rate)
 
-    def forward(self, x):
+    def forward(self, x, x_lens):
         # x: batch_size, max_xs_seq_len
         # batch_size, max_xs_seq_len, embedding_dim
         x = self.embedding(x)
         x = self.em_dropout(x)
-        # x: batch_size, max_xs_seq_len, en_hidden_size
+        # batch_size*max_xs_seq_len, embedding_dim
+        x = nn.utils.rnn.pack_padded_sequence(
+            input=x, 
+            lengths=x_lens, 
+            batch_first=True, 
+            enforce_sorted=False)
+        # x: batch_size*max_xs_seq_len, embedding_dim
         # h: 1, batch_size, en_hidden_size
         x, h = self.gru(x)
+        # x: batch_size, max_xs_seq_len, embedding_dim
+        x, _ = nn.utils.rnn.pad_packed_sequence(
+            sequence=x, 
+            batch_first=True)
+        # batch_size, max_xs_seq_len, en_hidden_size
         x = self.gru_dropout(x)
 
         return x, h
@@ -60,15 +71,26 @@ class LSTMRNNEncoder(nn.Module):
             bidirectional=False)
         self.lstm_dropout = nn.Dropout(self.config.en_drop_rate)
 
-    def forward(self, x):
+    def forward(self, x, x_lens):
         # x: batch_size
         # batch_size, max_xs_seq_len, embedding_dim
         x = self.embedding(x)
         x = self.em_dropout(x)
-        # x: batch_size, max_xs_seq_len, en_hidden_size
+        # batch_size*max_xs_seq_len, embedding_dim
+        x = nn.utils.rnn.pack_padded_sequence(
+            input=x, 
+            lengths=x_lens, 
+            batch_first=True, 
+            enforce_sorted=False)
+        # x: batch_size*max_xs_seq_len, embedding_dim
         # hidden: (h, c)
         # h, c: 1, batch_size, en_hidden_size
         x, hidden = self.lstm(x)
+        # x: batch_size, max_xs_seq_len, embedding_dim
+        x, _ = nn.utils.rnn.pad_packed_sequence(
+            sequence=x, 
+            batch_first=True)
+        # batch_size, max_xs_seq_len, en_hidden_size
         x = self.lstm_dropout(x)
 
         return x, hidden
@@ -93,13 +115,23 @@ class BiGRURNNEncoder(nn.Module):
             bidirectional=True)
         self.gru_dropout = nn.Dropout(self.config.en_drop_rate)
 
-    def forward(self, x):
+    def forward(self, x, x_lens):
         # x: batch_size, max_xs_seq_len
         # batch_size, max_xs_seq_len, embedding_dim
         x = self.embedding(x)
         x = self.em_dropout(x)
-        # x: batch_size, max_xs_seq_len, en_hidden_size
+        # batch_size*max_xs_seq_len, embedding_dim
+        x = nn.utils.rnn.pack_padded_sequence(
+            input=x, 
+            lengths=x_lens, 
+            batch_first=True, 
+            enforce_sorted=False)
+        # x: batch_size*max_xs_seq_len, embedding_dim
         x, h = self.bi_gru(x)
+        # batch_size, max_xs_seq_len, embedding_dim
+        x, _ = nn.utils.rnn.pad_packed_sequence(
+            sequence=x, 
+            batch_first=True)
         # h: 1, batch_size, en_hidden_size
         h = torch.unsqueeze(torch.cat(torch.unbind(h, 0), 1), 0)
         x = self.gru_dropout(x)
@@ -126,13 +158,23 @@ class BiLSTMRNNEncoder(nn.Module):
             bidirectional=True)
         self.lstm_dropout = nn.Dropout(self.config.en_drop_rate)
 
-    def forward(self, x):
+    def forward(self, x, x_lens):
         # x: batch_size, max_xs_seq_len
         # batch_size, max_xs_seq_len, embedding_dim
         x = self.embedding(x)
         x = self.em_dropout(x)
-        # x: batch_size, max_xs_seq_len, en_hidden_size
+        # batch_size*max_xs_seq_len, embedding_dim
+        x = nn.utils.rnn.pack_padded_sequence(
+            input=x, 
+            lengths=x_lens, 
+            batch_first=True, 
+            enforce_sorted=False)
+        # x: batch_size*max_xs_seq_len, embedding_dim
         x, (h, c) = self.bi_lstm(x)
+        # batch_size, max_xs_seq_len, embedding_dim
+        x, _ = nn.utils.rnn.pad_packed_sequence(
+            sequence=x, 
+            batch_first=True)
         # h, c: 1, batch_size, en_hidden_size
         h = torch.unsqueeze(torch.cat(torch.unbind(h, 0), 1), 0)
         c = torch.unsqueeze(torch.cat(torch.unbind(c, 0), 1), 0)

@@ -16,6 +16,7 @@ class Config():
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att, transformer
         self.model_name = 'transformer'
+
         self.load_check_point = False
         self.num_size = 10 # numbers involved
         self.seq_len = 5 # input sequence length
@@ -95,8 +96,8 @@ class RecursionConfig(Config):
             self.max_infer_step = self.seq_len
             self.tgt_seq_len = 3 # action, position, target operator
         elif self.data_src == 'nss':
-            self.max_infer_step = self.seq_len ** 2
-            self.tgt_seq_len = 1 # position to swap
+            self.max_infer_step = self.seq_len
+            self.tgt_seq_len = 2 # src_idx_to_swap, tgt_idx_to_swap
 
 class TaggingConfig(Config):
     """docstring for TaggingConfig"""

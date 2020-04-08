@@ -19,7 +19,7 @@ class Evaluate():
         # sequence-level accuracy
         self.seq_acc = self.get_seq_acc()
         # main metric for early stopping
-        self.key_metric = self.seq_acc
+        self.key_metric = self.token_acc
         # generate an evaluation message
         self.eva_msg = 'Token Acc:{:.4f} Seq Acc:{:.4f}'.format(self.token_acc, self.seq_acc)
         if self.config.data_src == 'aoi' and not train:
@@ -32,7 +32,7 @@ class Evaluate():
 
     def check_equation(self, tgt, pred): 
         # remove end symbol
-        if self.config.method in ['end2end', 'tagging']:
+        if self.config.method in ['end2end']:
             # remove end symbol
             tgt = [t for t in tgt if t != self.config.end_idx]
             pred = [p for p in pred if p != self.config.end_idx]
@@ -43,16 +43,18 @@ class Evaluate():
         # e.g., ['3', '3', '9', '3', '6']
         tgt_nums = [t for t in tgt if t.isdigit()]
         # e.g., ['3', '3', '9', '3', '6']
-        pred_nums = [p for p in tgt if p.isdigit()]
+        pred_nums = [p for p in pred if p.isdigit()]
+        # eval('123') return 123
+        # eval('1 2 3') raise error
         try:
-            # eval('123') return 123
-            # eval('1 2 3') raise error
-            if tgt_nums == pred_nums and eval(' '.join(pred)):
-                return 1
-            else:
-                return 0
+            if tgt_nums == pred_nums and pred[-1].isdigit() and pred[-2] == '==':
+                    right = int(pred[-1])
+                    left = eval(' '.join(pred[:-2]))
+                    if left == right:
+                        return 1
         except:
             return 0
+        return 0
 
     def check_token(self, tar, pred):
         min_len = min([len(tar), len(pred)])

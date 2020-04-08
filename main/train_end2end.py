@@ -180,8 +180,8 @@ class TextEditor(object):
 
     def train(self):
         general_info = show_config(self.config, self.model)
-        self.test_log.append(general_info)
         self.val_log.append(general_info)
+        self.test_log.append(general_info)
         while not self.finished:
             print('\nTraining...')
             self.model.train()
@@ -191,6 +191,7 @@ class TextEditor(object):
             #     print(x_lens.cpu().detach().numpy()[0])
             #     print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
             #     print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+
             #     break
             # break
                 xs = data['xs']

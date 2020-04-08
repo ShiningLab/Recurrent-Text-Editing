@@ -25,10 +25,11 @@ def generate_end2end(num_size, seq_len, data_size):
             # get a random number sequence
             x = np.random.randint(num_size, size=[seq_len])
             # check duplicates
-            if str(x) in num_seq_set: 
+            y = np.sort(x)
+            if str(y) in num_seq_set: 
                 continue
             else:
-                num_seq_set.add(str(x))
+                num_seq_set.add(str(y))
                 y = np.sort(x)
                 # convert a list of int to string
                 x = convert_to_str(x)
