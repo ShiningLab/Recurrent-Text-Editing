@@ -56,6 +56,7 @@ class GRURNNDecoderAttention(nn.Module):
         mask = idx < src_lens
         attn_energies[~mask] = float('-inf') 
         # batch_size, 1, max_src_seq_len
+        # return F.log_softmax(attn_energies, dim=1).unsqueeze(1)
         return F.softmax(attn_energies, dim=1).unsqueeze(1)
 
 
@@ -104,4 +105,5 @@ class LSTMRNNDecoderAttention(nn.Module):
         mask = idx < src_lens
         attn_energies[~mask] = float('-inf') 
         # batch_size, 1, max_src_seq_len
+        # return F.log_softmax(attn_energies, dim=1).unsqueeze(1)
         return F.softmax(attn_energies, dim=1).unsqueeze(1)

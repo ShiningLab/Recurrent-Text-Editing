@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
+
+__author__ = 'Ziheng Zeng'
+
+
+# dependency
+# public
 import math
 import torch
 import torch.nn as nn
@@ -182,5 +190,4 @@ class PositionalEncoding(nn.Module):
     def forward(self, x):
         x = x + self.pe[:x.size(0), :]
         return self.dropout(x)
-
 

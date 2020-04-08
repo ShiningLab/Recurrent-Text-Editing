@@ -14,9 +14,11 @@ import numpy as np
 
 # private
 from ..models import (
+    transformer, 
     gru_rnn, lstm_rnn, 
     bi_gru_rnn, bi_lstm_rnn, 
-    bi_gru_rnn_att, bi_lstm_rnn_att, transformer, gru_ptr)
+    bi_gru_rnn_att, bi_lstm_rnn_att, 
+    gru_ptr)
 
 
 class OfflineEnd2EndDataset(torch_data.Dataset):
@@ -117,7 +119,14 @@ class OnlineTaggingDataset(torch_data.Dataset):
             return self.ys[idx]
 
 def pick_model(config, method):
-    if config.model_name == 'gru_rnn':
+    if config.model_name == 'transformer':
+        if method == 'end2end':
+            return transformer.End2EndModelGraph(config).to(config.device)
+        elif method == 'recursion':
+            return transformer.RecursionModelGraph(config).to(config.device)
+        else:
+            raise ValueError('Wrong model to pick.')
+    elif config.model_name == 'gru_rnn':
         if method == 'end2end':
             return gru_rnn.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
@@ -157,19 +166,14 @@ def pick_model(config, method):
             return bi_lstm_rnn_att.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return bi_lstm_rnn_att.RecursionModelGraph(config).to(config.device)
-
-    elif config.model_name == 'transformer':
-        if method == 'end2end':
-            return transformer.End2EndModelGraph(config).to(config.device)
-        if method == 'recursion':
-            return transformer.RecursionModelGraph(config).to(config.device)
-
+        else:
+            raise ValueError('Wrong model to pick.')
     elif config.model_name == 'gru_ptr':
         if method == 'end2end':
             return gru_ptr.End2EndModelGraph(config).to(config.device)
         else:
             raise ValueError('Wrong model to pick.')
-
+    raise ValueError('Wrong model to pick.')
 
 def get_list_mean(l: list) -> float:
     return sum(l) / len(l)
@@ -216,13 +220,13 @@ def show_config(config, model):
 def translate(seq: list, trans_dict: dict) -> list: 
     return [trans_dict[token] for token in seq]
 
-def rm_pad(seq, pad_idx):
-    return [i for i in seq if i != pad_idx]
+def rm_idx(seq, idx):
+    return [i for i in seq if i != idx]
 
 def rm_pads(srcs, tgts, preds, pad_idx): 
-    srcs = [rm_pad(src, pad_idx) for src in srcs] 
-    tgts = [rm_pad(tgt, pad_idx) for tgt in tgts] 
-    preds = [rm_pad(pred, pad_idx) for pred in preds] 
+    srcs = [rm_idx(src, pad_idx) for src in srcs] 
+    tgts = [rm_idx(tgt, pad_idx) for tgt in tgts] 
+    preds = [rm_idx(pred, pad_idx) for pred in preds] 
     preds = [p[:len(t)] for p, t in zip(preds, tgts)]
     return srcs, tgts, preds
 
@@ -262,14 +266,12 @@ def find_src_index_to_swap(x: list, y: list) -> int:
     else:
         idx_to_swap = [i for i in range(len(x)) if x[i] != y[i]][0]
         return idx_to_swap
-# for swap sort
-def find_tgt_index_to_swap(x: list, y: list, src_idx: int) -> int:
+    
+def find_tgt_index_to_swap(x: list, src_idx: int) -> int:
     if src_idx == -1:
         return -1
     else:
-        tgt_num = y[src_idx]
-        idx_to_swap = [i for i in range(len(x)) if x[i]==tgt_num][-1]
-        return idx_to_swap
+        return np.argmin(x[src_idx:]) + src_idx
 
 def convert_to_int(seq:list) -> list:
     return [int(str_number) for str_number in seq]
@@ -304,7 +306,7 @@ def end2end_online_generator(data_src: str, data) -> list:
         xs = [x.copy()]
         while True:
             src_idx = find_src_index_to_swap(x, y) 
-            tgt_idx = find_tgt_index_to_swap(x, y, src_idx)
+            tgt_idx = find_tgt_index_to_swap(x, src_idx)
             if src_idx == tgt_idx == -1:
                 break
             x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
@@ -313,19 +315,6 @@ def end2end_online_generator(data_src: str, data) -> list:
         x = convert_to_str(xs[index])
         y = convert_to_str(y)
         return x, y
-        # for bubble sort
-        # x, y = data # tuple of list
-        # x = convert_to_int(x)
-        # xs = [x.copy()]
-        # while True:
-        #     j = find_next_step_in_bubble_sort(x)
-        #     if j == -1:
-        #         break
-        #     x = bubble_sort_step(x, j)
-        #     xs.append(x.copy())
-        # index = np.random.choice(range(len(xs)))
-        # x = convert_to_str(xs[index])
-        # return x, y
 
 def recursion_online_generator(data_src: str, data: list) -> list:
     # online training data generation
@@ -358,7 +347,7 @@ def recursion_online_generator(data_src: str, data: list) -> list:
         ys_ = []
         while True:
             src_idx = find_src_index_to_swap(x, y) 
-            tgt_idx = find_tgt_index_to_swap(x, y, src_idx)
+            tgt_idx = find_tgt_index_to_swap(x, src_idx)
             ys_.append([src_idx, tgt_idx])
             if src_idx == tgt_idx == -1:
                 break
@@ -367,21 +356,7 @@ def recursion_online_generator(data_src: str, data: list) -> list:
         index = np.random.choice(range(len(xs)))
         x = convert_to_str(xs[index])
         y_ = convert_to_str(ys_[index])
-        # for bubble sort
-        # x = data.copy()
-        # x = convert_to_int(x)
-        # xs = [x.copy()]
-        # ys_ = []
-        # while True:
-        #     y_ = find_next_step_in_bubble_sort(x)
-        #     ys_.append(y_)
-        #     if y_ == -1:
-        #         break
-        #     x = bubble_sort_step(x, y_)
-        #     xs.append(x.copy())
-        # index = np.random.choice(range(len(xs)))
-        # x = convert_to_str(xs[index])
-        # y_ = [str(ys_[index])]
+
         return x, y_
 
 def tagging_online_generator(y: list) -> list:
@@ -413,7 +388,6 @@ def tagging_online_generator(y: list) -> list:
 
         return x, y_
 
-
 def subsequent_mask(size):
     """Mask out subsequent positions."""
     attn_shape = (size, size)
@@ -437,21 +411,20 @@ def prepare_masks(sz, config):
     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
     return mask
 
-def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config, train=True):
+def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config, train=True): 
     # vocab to index
     xs = [translate(x, src_vocab2idx_dict) for x in xs]
     ys = [translate(y, tgt_vocab2idx_dict) for y in ys]
-    if config.method in ['end2end', 'tagging'] and train:
+    if config.method in ['end2end', 'tagging'] and train and 'ptr' not in config.model_name:
         # add end symbol and save as tensor
         xs = [torch.Tensor(x) for x in xs]
-        ys = [torch.Tensor(y + [config.end_idx]) for y in ys]
+        ys = [torch.Tensor(y + [config.end_idx]) for y in ys] 
     else:
         # convert to tensor
         xs = [torch.Tensor(x) for x in xs]
         ys = [torch.Tensor(y) for y in ys] 
 
     return xs, ys
-
 
 def padding(seqs, max_len=None):
     # zero padding
@@ -472,15 +445,21 @@ def is_int(v):
     except:
         return False
 
-def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, is_logit=True):
+def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, is_logit=True): 
     # detach from devices
-    xs = xs.cpu().detach().numpy()
+    xs = xs.cpu().detach().numpy() 
     if is_logit:
-        ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy()
+        ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() 
     else:
         ys_ = ys_.cpu().detach().numpy()
-    # remove padding
-    xs = [rm_pad(x, config.pad_idx) for x in xs] 
+    # remove padding idx
+    xs = [rm_idx(x, config.pad_idx) for x in xs] 
+    if config.model_name == 'transformer':
+        # remove start symbol
+        ys_ = [y_[1:] for y_ in ys_]
+    else:
+        # remove end symbol
+        ys_ = [y_[:-1] for y_ in ys_]
     # convert index to vocab
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
@@ -533,32 +512,9 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
         xs, x_lens = padding(xs)
     return xs.to(config.device), torch.Tensor(x_lens).to(config.device), done
 
-
-def recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask,
-                                max_infer_step,
-                                src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict,
-                                config, done=False):
-    if max_infer_step == 0:
-        return xs, x_lens, False
-    else:
-        xs, x_lens, done = recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask,
-                                                       max_infer_step-1,
-                                                       src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict,
-                                                       config, done)
-        if done:
-            return xs, x_lens, done
-        else:
-            model.eval()
-            ys_ = model(xs, x_lens, ys, src_mask, tgt_mask)
-            xs, x_lens, done = one_step_infer(xs, ys_,
-                src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, False)
-            return xs, x_lens, done
-
-
-def recursive_infer(xs, x_lens, model, max_infer_step,
+def recursive_infer(xs, x_lens, model, max_infer_step, 
     src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done=False):
     # recursive inference in valudation and testing
-    # for Arithmetic Operators Insertion (AOI)
     if max_infer_step == 0:
         return xs, x_lens, False
     else:
@@ -572,6 +528,22 @@ def recursive_infer(xs, x_lens, model, max_infer_step,
                 src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config)
             return xs, x_lens, done
 
+def recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask, 
+    max_infer_step, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done=False):
+    # recursive inference for transformer
+    if max_infer_step == 0:
+        return xs, x_lens, False
+    else:
+        xs, x_lens, done = recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask, 
+            max_infer_step-1, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done)
+        if done:
+            return xs, x_lens, done
+        else:
+            model.eval()
+            ys_ = model(xs, x_lens, ys, src_mask, tgt_mask)
+            xs, x_lens, done = one_step_infer(xs, ys_, 
+                src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, False)
+            return xs, x_lens, done
 
 def tagging_execution(x, y_):
     p = []
@@ -589,8 +561,9 @@ def tagging_execution(x, y_):
             y_token = y_token.split('<add_')[1].split('>')[0]
             p.append(y_token)
         else:
-            # end symbol
-            p.append(y_token)
+            # end symbol or pad symbol
+            pass
+
     return p
 
 def tagging_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict):
@@ -600,4 +573,3 @@ def tagging_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab
     preds = [tagging_execution(x, y_) for x, y_ in zip(xs, ys_)]
     # convert vocab to index
     return [translate(p, src_vocab2idx_dict) for p in preds]
-

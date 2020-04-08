@@ -197,4 +197,4 @@ class AttBiLSTMRNNDecoder(nn.Module):
         x = self.out(x)
         # batch_size, vocab_size
         x = self.softmax(x)
-        return x, (h, c)
+        return x, (h, c)  
