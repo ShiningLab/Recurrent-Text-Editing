@@ -12,14 +12,14 @@ class Config():
         # data source
         self.data_src = 'aoi' # aoi, nss
         self.method = 'recursion' # end2end, recursion, tagging
-        self.data_mode = 'online' # online, offline 
+        self.data_mode = 'online' # online, offline
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
-        # bi_gru_rnn_att, bi_lstm_rnn_att
-        self.model_name = 'bi_lstm_rnn_att'
+        # bi_gru_rnn_att, bi_lstm_rnn_att, transformer
+        self.model_name = 'transformer'
         self.load_check_point = False
         self.num_size = 10 # numbers involved
         self.seq_len = 5 # input sequence length
-        self.data_size = 10000 # total data size
+        self.data_size = 100 # total data size
         # I/O directory
         # current path
         self.CURR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -54,7 +54,7 @@ class Config():
         self.start_symbol = '<s>'
         self.end_symbol = '</s>'
         # data loader
-        self.batch_size = 256
+        self.batch_size = 4
         self.shuffle = True
         self.drop_last = True
         # val
@@ -73,8 +73,13 @@ class Config():
         self.de_num_layers = 1
         # dropout
         self.embedding_drop_rate = 0.5
-        self.en_drop_rate = 0.5
+        self.en_drop_rate = 0.2
         self.de_drop_rate = 0.5
+        self.pos_encoder_drop_rate = 0.2
+        # transformer specific dims
+        self.ffnn_dim = 2048
+        self.num_heads = 8
+
 
 class End2EndConfig(Config):
     """docstring for End2EndConfig"""

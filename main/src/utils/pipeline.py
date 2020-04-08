@@ -15,7 +15,7 @@ import numpy as np
 # private
 from ..models import (gru_rnn, lstm_rnn, 
     bi_gru_rnn, bi_lstm_rnn, 
-    bi_gru_rnn_att, bi_lstm_rnn_att)
+    bi_gru_rnn_att, bi_lstm_rnn_att, transformer)
 
 
 class OfflineEnd2EndDataset(torch_data.Dataset):
@@ -143,6 +143,11 @@ def pick_model(config, method):
             return bi_lstm_rnn_att.End2EndModelGraph(config).to(config.device)
         if method == 'recursion':
             return bi_lstm_rnn_att.RecursionModelGraph(config).to(config.device)
+    elif config.model_name == 'transformer':
+        if method == 'end2end':
+            return transformer.End2EndModelGraph(config).to(config.device)
+        if method == 'recursion':
+            return transformer.RecursionModelGraph(config).to(config.device)
 
 def get_list_mean(l: list) -> float:
     return sum(l) / len(l)
@@ -336,20 +341,45 @@ def tagging_online_generator(y: list) -> list:
 
         return x, y_
 
-def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config): 
+
+def subsequent_mask(size):
+    """Mask out subsequent positions."""
+    attn_shape = (size, size)
+    mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+    mask =  torch.from_numpy(mask) == 0
+    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+    return mask
+
+
+def make_std_mask(tgt, pad):
+    """Create a mask to hide padding and future words."""
+    tgt_mask = (tgt != pad).unsqueeze(-2)
+    tgt_mask = tgt_mask & torch.autograd.Variable(subsequent_mask(tgt.size(-1)).type_as(tgt_mask.data))
+    tgt_mask = tgt_mask.float().masked_fill(tgt_mask == 0, float('-inf')).masked_fill(tgt_mask == 1, float(0.0))
+    return tgt_mask
+
+
+def prepare_masks(sz, config):
+    """Create source and target sequence mask for the transformer model. Called after padding """
+    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+    return mask
+
+def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config):
     # vocab to index
     xs = [translate(x, src_vocab2idx_dict) for x in xs]
     ys = [translate(y, tgt_vocab2idx_dict) for y in ys]
     if config.method in ['end2end', 'tagging']:
         # add end symbol and save as tensor
         xs = [torch.Tensor(x) for x in xs]
-        ys = [torch.Tensor(y + [config.end_idx]) for y in ys] 
+        ys = [torch.Tensor(y + [config.end_idx]) for y in ys]
     elif config.method in ['recursion']: 
         # convert to tensor
         xs = [torch.Tensor(x) for x in xs]
         ys = [torch.Tensor(y) for y in ys] 
 
     return xs, ys
+
 
 def padding(seqs, max_len=None):
     # zero padding
@@ -370,10 +400,13 @@ def is_int(v):
     except:
         return False
 
-def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config): 
+def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, is_logit=True):
     # detach from devices
-    xs = xs.cpu().detach().numpy() 
-    ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() 
+    xs = xs.cpu().detach().numpy()
+    if is_logit:
+        ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy()
+    else:
+        ys_ = ys_.cpu().detach().numpy()
     # remove padding
     xs = [rm_pad(x, config.pad_idx) for x in xs] 
     # convert index to vocab
@@ -415,7 +448,29 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
         xs, x_lens = padding(xs)
     return xs.to(config.device), torch.Tensor(x_lens).to(config.device), done
 
-def recursive_infer(xs, x_lens, model, max_infer_step, 
+
+def recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask,
+                                max_infer_step,
+                                src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict,
+                                config, done=False):
+    if max_infer_step == 0:
+        return xs, x_lens, False
+    else:
+        xs, x_lens, done = recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask,
+                                                       max_infer_step-1,
+                                                       src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict,
+                                                       config, done)
+        if done:
+            return xs, x_lens, done
+        else:
+            model.eval()
+            ys_ = model(xs, x_lens, ys, src_mask, tgt_mask)
+            xs, x_lens, done = one_step_infer(xs, ys_,
+                src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, False)
+            return xs, x_lens, done
+
+
+def recursive_infer(xs, x_lens, model, max_infer_step,
     src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done=False):
     # recursive inference in valudation and testing
     # for Arithmetic Operators Insertion (AOI)
@@ -431,6 +486,7 @@ def recursive_infer(xs, x_lens, model, max_infer_step,
             xs, x_lens, done = one_step_infer(xs, ys_, 
                 src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config)
             return xs, x_lens, done
+
 
 def tagging_execution(x, y_):
     p = []

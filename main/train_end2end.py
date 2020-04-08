@@ -40,7 +40,7 @@ class TextEditor(object):
 
     def setup_gpu(self): 
         # verify devices which can be either cpu or gpu
-        self.config.use_gpu = torch.cuda.is_available()
+        self.config.use_gpu =  torch.cuda.is_available()
         self.config.device = 'cuda' if self.config.use_gpu else 'cpu'
 
     def load_vocab(self):
@@ -66,6 +66,7 @@ class TextEditor(object):
         # convert to index, add end symbol, and save as tensor
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config)
+        #
         # TODO: why padding leads to an incorrect prediction
         if self.config.data_mode == 'online' and self.config.data_src == 'aoi':
                 xs, x_lens = padding(xs, self.config.seq_len*2+1)
@@ -73,9 +74,19 @@ class TextEditor(object):
             xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
-        return (xs.to(self.config.device), 
-            torch.Tensor(x_lens).to(self.config.device), 
-            ys.to(self.config.device))
+        if self.config.model_name == 'transformer':
+            src_mask = prepare_masks(xs.size(1), self.config)
+            tgt_mask = prepare_masks(ys.size(1)+1, self.config)  # plus 1 here for the start idx
+            return {'xs': xs.to(self.config.device),
+                    'x_lens': torch.Tensor(x_lens).to(self.config.device),
+                    'ys': ys.to(self.config.device),
+                    'src_mask': src_mask.to(self.config.device),
+                    'tgt_mask': tgt_mask.to(self.config.device)}
+
+        else:
+            return {'xs': xs.to(self.config.device),
+                    'x_lens': torch.Tensor(x_lens).to(self.config.device),
+                    'ys': ys.to(self.config.device)}
 
     def test_end2end_collate_fn(self, data): 
         # a customized collate function used in the data loader 
@@ -91,9 +102,20 @@ class TextEditor(object):
             xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
-        return (xs.to(self.config.device), 
-            torch.Tensor(x_lens).to(self.config.device), 
-            ys.to(self.config.device))
+        if self.config.model_name == 'transformer':
+            src_mask = prepare_masks(xs.size(1), self.config)
+            tgt_mask = prepare_masks(ys.size(1)+1, self.config)  # plus 1 here for the start idx
+            return {'xs': xs.to(self.config.device),
+                    'x_lens': torch.Tensor(x_lens).to(self.config.device),
+                    'ys': ys.to(self.config.device),
+                    'src_mask': src_mask.to(self.config.device),
+                    'tgt_mask': tgt_mask.to(self.config.device)}
+
+        else:
+            return {'xs': xs.to(self.config.device),
+                    'x_lens': torch.Tensor(x_lens).to(self.config.device),
+                    'ys': ys.to(self.config.device)}
+
 
     def load_data(self): 
         # read data dictionary from json file
@@ -165,13 +187,23 @@ class TextEditor(object):
             self.model.train()
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
-            for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
+            for i, data in enumerate(trainset_generator):
             #     print(x_lens.cpu().detach().numpy()[0])
             #     print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
             #     print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
             #     break
             # break
-                ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
+                xs = data['xs']
+                x_lens = data['x_lens']
+                ys = data['ys']
+                if self.config.model_name == 'transformer':
+                    src_mask = data['src_mask']
+                    tgt_mask = data['tgt_mask']
+                    start_symbols = torch.ones([ys.size(0), 1], dtype=torch.double, device=self.config.device)*self.config.start_idx
+                    ys = torch.cat((start_symbols.long(), ys), 1)
+                    ys_ = self.model(xs, x_lens, ys, src_mask, tgt_mask)
+                else:
+                    ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
             #     break
             # break
                 loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
@@ -228,11 +260,26 @@ class TextEditor(object):
         valset_generator = tqdm(self.valset_generator)
         self.model.eval()
         with torch.no_grad():
-            for xs, x_lens, ys in valset_generator:
-                ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
+            for data in valset_generator:
+                xs = data['xs']
+                x_lens = data['x_lens']
+                ys = data['ys']
+                if self.config.model_name == 'transformer':
+                    src_mask = data['src_mask']
+                    tgt_mask = data['tgt_mask']
+                    start_symbols = torch.ones([ys.size(0), 1], dtype=torch.double,
+                                               device=self.config.device) * self.config.start_idx
+                    ys = torch.cat((start_symbols.long(), ys), 1)
+                    ys_ = self.model(xs, x_lens, ys, src_mask, tgt_mask)
+                else:
+                    ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
-                ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
+                if self.config.model_name == 'transformer':
+                    ys_ = ys_.cpu().detach().numpy()
+                else:
+                    ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
+
                 xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
                 all_xs += xs
                 all_ys += ys 
@@ -275,11 +322,25 @@ class TextEditor(object):
         testset_generator = tqdm(self.testset_generator)
         model.eval()
         with torch.no_grad():
-            for xs, x_lens, ys in testset_generator:
-                ys_ = model(xs, x_lens, ys, teacher_forcing_ratio=0.)
+            for data in testset_generator:
+                xs = data['xs']
+                x_lens = data['x_lens']
+                ys = data['ys']
+                if self.config.model_name == 'transformer':
+                    src_mask = data['src_mask']
+                    tgt_mask = data['tgt_mask']
+                    start_symbols = torch.ones([ys.size(0), 1], dtype=torch.double,
+                                               device=self.config.device) * self.config.start_idx
+                    ys = torch.cat((start_symbols.long(), ys), 1)
+                    ys_ = self.model(xs, x_lens, ys, src_mask, tgt_mask)
+                else:
+                    ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
-                ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
+                if self.config.model_name == 'transformer':
+                    ys_ = ys_.cpu().detach().numpy()
+                else:
+                    ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy()  # batch_size, max_ys_seq_len
                 xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
                 all_xs += xs
                 all_ys += ys 
@@ -300,11 +361,13 @@ class TextEditor(object):
         self.test_tgt = [' '.join(translate(y, self.tgt_idx2vocab_dict)) for y in all_ys]
         self.test_pred = [' '.join(translate(y_, self.tgt_idx2vocab_dict)) for y_ in all_ys_]
 
+
 def main(): 
     # initial everything
     te = TextEditor(End2EndConfig())
     # train!
     te.train()
+
 
 if __name__ == '__main__':
       main()

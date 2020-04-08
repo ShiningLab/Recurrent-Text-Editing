@@ -68,9 +68,19 @@ class TextEditor(object):
         xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
-        return (xs.to(self.config.device), 
-            torch.Tensor(x_lens).to(self.config.device), 
-            ys.to(self.config.device))
+        if self.config.model_name == 'transformer':
+            src_mask = prepare_masks(xs.size(1), self.config)
+            tgt_mask = prepare_masks(ys.size(1)+1, self.config)  # plus 1 here for the start idx
+            return {'xs': xs.to(self.config.device),
+                    'x_lens': torch.Tensor(x_lens).to(self.config.device),
+                    'ys': ys.to(self.config.device),
+                    'src_mask': src_mask.to(self.config.device),
+                    'tgt_mask': tgt_mask.to(self.config.device)}
+
+        else:
+            return {'xs': xs.to(self.config.device),
+                    'x_lens': torch.Tensor(x_lens).to(self.config.device),
+                    'ys': ys.to(self.config.device)}
 
     def test_recursion_collate_fn(self, data): 
         # a customized collate function used in the data loader 
@@ -84,9 +94,19 @@ class TextEditor(object):
         # xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
-        return (xs.to(self.config.device), 
-            torch.Tensor(x_lens).to(self.config.device), 
-            ys.to(self.config.device))
+        if self.config.model_name == 'transformer':
+            src_mask = prepare_masks(xs.size(1), self.config)
+            tgt_mask = prepare_masks(ys.size(1)+1, self.config)  # plus 1 here for the start idx
+            return {'xs': xs.to(self.config.device),
+                    'x_lens': torch.Tensor(x_lens).to(self.config.device),
+                    'ys': ys.to(self.config.device),
+                    'src_mask': src_mask.to(self.config.device),
+                    'tgt_mask': tgt_mask.to(self.config.device)}
+
+        else:
+            return {'xs': xs.to(self.config.device),
+                    'x_lens': torch.Tensor(x_lens).to(self.config.device),
+                    'ys': ys.to(self.config.device)}
 
     def load_data(self): 
         # read data dictionary from json file
@@ -156,14 +176,23 @@ class TextEditor(object):
             self.model.train()
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
-            for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
-                # for j in range(1):
-            #         print(x_lens.cpu().detach().numpy()[j])
-            #         print(translate(xs.cpu().detach().numpy()[j], self.src_idx2vocab_dict))
-            #         print(translate(ys.cpu().detach().numpy()[j], self.tgt_idx2vocab_dict))
+            for i, data in enumerate(trainset_generator):
+            #     print(x_lens.cpu().detach().numpy()[0])
+            #     print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
+            #     print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
             #     break
             # break
-                ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
+                xs = data['xs']
+                x_lens = data['x_lens']
+                ys = data['ys']
+                if self.config.model_name == 'transformer':
+                    src_mask = data['src_mask']
+                    tgt_mask = data['tgt_mask']
+                    start_symbols = torch.ones([ys.size(0), 1], dtype=torch.double, device=self.config.device)*self.config.start_idx
+                    ys = torch.cat((start_symbols.long(), ys), 1)
+                    ys_ = self.model(xs, x_lens, ys, src_mask, tgt_mask)
+                else:
+                    ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
             #     break
             # break
                 loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
@@ -175,8 +204,8 @@ class TextEditor(object):
                 self.step += 1
             # check progress
             loss = loss.item()
-            xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
-            ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
+            xs = xs.cpu().detach().numpy()  # batch_size, max_xs_seq_len
+            ys = ys.cpu().detach().numpy()  # batch_size, max_ys_seq_len
             ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
             xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
             # evaluation
@@ -223,12 +252,26 @@ class TextEditor(object):
         valset_generator = tqdm(self.valset_generator)
         self.model.eval()
         with torch.no_grad():
-            for xs, x_lens, ys in valset_generator:
-                # print(x_lens.cpu().detach().numpy()[0])
+            for data in valset_generator:
+                xs = data['xs']
+                x_lens = data['x_lens']
+                ys = data['ys']                # print(x_lens.cpu().detach().numpy()[0])
                 # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # print(translate(ys.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # break
-                ys_,  _, _ = recursive_infer(xs, x_lens, model, self.config.max_infer_step, 
+                if self.config.model_name == 'transformer':
+                    src_mask = data['src_mask']
+                    tgt_mask = data['tgt_mask']
+                    start_symbols = torch.ones([ys.size(0), 1], dtype=torch.double,
+                                               device=self.config.device) * self.config.start_idx
+                    ys = torch.cat((start_symbols.long(), ys), 1)
+                    ys_, _, _ = recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask,
+                                                            self.config.max_infer_step,
+                                                            self.src_idx2vocab_dict,
+                                                            self.src_vocab2idx_dict, self.tgt_idx2vocab_dict,
+                                                            self.config)
+                else:
+                    ys_, _, _ = recursive_infer(xs, x_lens, model, self.config.max_infer_step,
                     self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config)
                     # if i == 0:
                         # break
@@ -281,12 +324,27 @@ class TextEditor(object):
         testset_generator = tqdm(self.testset_generator)
         model.eval()
         with torch.no_grad():
-            for xs, x_lens, ys in testset_generator: 
+            for data in testset_generator:
+                xs = data['xs']
+                x_lens = data['x_lens']
+                ys = data['ys']
                 # print(x_lens.cpu().detach().numpy()[0])
                 # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # print(translate(ys.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # break
-                ys_, _, _ = recursive_infer(xs, x_lens, model, self.config.max_infer_step, 
+                if self.config.model_name == 'transformer':
+                    src_mask = data['src_mask']
+                    tgt_mask = data['tgt_mask']
+                    start_symbols = torch.ones([ys.size(0), 1], dtype=torch.double,
+                                               device=self.config.device) * self.config.start_idx
+                    ys = torch.cat((start_symbols.long(), ys), 1)
+                    ys_, _, _ = recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask,
+                                                            self.config.max_infer_step,
+                                                            self.src_idx2vocab_dict,
+                                                            self.src_vocab2idx_dict, self.tgt_idx2vocab_dict,
+                                                            self.config)
+                else:
+                    ys_, _, _ = recursive_infer(xs, x_lens, model, self.config.max_infer_step,
                     self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config)
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
