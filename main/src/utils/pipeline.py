@@ -227,7 +227,6 @@ def rm_pads(srcs, tgts, preds, pad_idx):
     srcs = [rm_idx(src, pad_idx) for src in srcs] 
     tgts = [rm_idx(tgt, pad_idx) for tgt in tgts] 
     preds = [rm_idx(pred, pad_idx) for pred in preds] 
-    preds = [p[:len(t)] for p, t in zip(preds, tgts)]
     return srcs, tgts, preds
 
 def save_check_point(step, epoch, model_state_dict, opt_state_dict, path):
@@ -488,23 +487,6 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
             src_idxes = ys_[mask].astype(int)[:, 0] 
             tgt_idxes = ys_[mask].astype(int)[:, 1]
             xs[mask, src_idxes], xs[mask, tgt_idxes] = xs[mask, tgt_idxes], xs[mask, src_idxes] 
-        # for bubble sort
-        # if np.array_equal(ys_, np.full(ys_.shape, '-1')):
-        #     done = True
-        # else:
-        #     done = False
-        #     # ndarray inference
-        #     is_numeric = np.vectorize(is_int, otypes=[bool])
-        #     swap_idxes = np.arange(xs.shape[0])[np.where((is_numeric(ys_)) & (ys_!='-1'))[0]]
-        #     swap_ys_ = ys_[swap_idxes].T.astype(int)
-        #     xs[swap_idxes, swap_ys_], xs[swap_idxes, swap_ys_+1] = \
-        #     xs[swap_idxes, swap_ys_+1], xs[swap_idxes, swap_ys_]
-            # for loop inference
-            # for i in range(len(xs)):
-            #     y_ = ys_[i]
-            #     if y_[0].isdigit():
-            #         idx = int(y_[0])
-            #         xs[i][idx], xs[i][idx+1] = xs[i][idx+1], xs[i][idx]
         xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
         xs, x_lens = padding(xs)
     return xs.to(config.device), torch.Tensor(x_lens).to(config.device), done

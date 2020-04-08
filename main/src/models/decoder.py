@@ -140,6 +140,7 @@ class AttBiGRURNNDecoder(nn.Module):
         context = attn_w.bmm(encoder_output)
         # batch_size, 1, de_hidden_size
         x = self.attn_combine(torch.cat((x, context), 2))
+        x = F.relu(x)
         x, h = self.gru(x, h)
         # batch_size, de_hidden_size
         x = self.gru_dropout(x).squeeze(1)
@@ -190,6 +191,7 @@ class AttBiLSTMRNNDecoder(nn.Module):
         context = attn_w.bmm(encoder_output)
         # batch_size, 1, de_hidden_size
         x = self.attn_combine(torch.cat((x, context), 2))
+        x = F.relu(x)
         x, (h, c) = self.lstm(x, hidden)
         # batch_size, de_hidden_size
         x = self.lstm_dropout(x).squeeze(1)

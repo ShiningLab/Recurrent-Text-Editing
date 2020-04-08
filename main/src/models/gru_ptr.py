@@ -12,7 +12,7 @@ import torch.nn as nn
 import random
 # private
 from .encoder import GRURNNEncoder
-from .attention import GRURNNDecoderAttention
+from .attention import PtrNetAttention
 
 
 class End2EndModelGraph(nn.Module): 
@@ -21,7 +21,7 @@ class End2EndModelGraph(nn.Module):
         super(End2EndModelGraph, self).__init__() 
         self.config = config
         self.encoder = GRURNNEncoder(config)
-        self.attn = GRURNNDecoderAttention(config)
+        self.attn = PtrNetAttention(config)
         self.embedding = nn.Embedding(
             num_embeddings=2, 
             embedding_dim=self.config.embedding_size, 
@@ -43,8 +43,9 @@ class End2EndModelGraph(nn.Module):
         masks = row_mask * col_mask
         return masks
 
-    def forward(self, xs, x_lens):
+    def forward(self, xs, x_lens, argsort_xs, teacher_forcing_ratio=0.5):
         # xs: batch_size, max_len
+        # argsoft_xs: batch_size, max_len
         batch_size = xs.shape[0]
         # for ptr net, x_len = y_len
         max_len = xs.shape[1]
@@ -62,10 +63,7 @@ class End2EndModelGraph(nn.Module):
         # batch_size, en_hidden_size
         decoder_hidden = encoder_hidden.squeeze(0)
         # max_len, batch_size, max_len
-        decoder_outputs = torch.zeros(
-            max_len, 
-            batch_size, 
-            max_len, 
+        decoder_outputs = torch.zeros(max_len, batch_size, max_len, 
             device=self.config.device)
         # generate mask
         # batch_size, max_len, max_len
@@ -77,15 +75,17 @@ class End2EndModelGraph(nn.Module):
             decoder_hidden = self.gru(decoder_input, decoder_hidden)
             decoder_hidden = self.gru_dropout(decoder_hidden)
             # batch_size, max_len
-            attn_w = self.attn(decoder_hidden, encoder_output, x_lens).squeeze(1)
+            attn_w = self.attn(decoder_hidden, encoder_output, x_lens)
             # batch_size, max_len
-            decoder_outputs[i] = attn_w.squeeze(1)
-            # batch_size, 1
+            decoder_outputs[i] = attn_w.log()
             attn_w.masked_fill(~mask, float('-inf'))
-            ptr_idxes = attn_w.max(-1, keepdim=True)[1]
+            # batch_size, 1
+            ptr_idxes = argsort_xs[:, i, None] if random.random() < teacher_forcing_ratio \
+            else attn_w.max(-1, keepdim=True)[1]
             # batch_size, 1, en_hidden_size
             ptr_idxes = ptr_idxes.unsqueeze(-1).expand(-1, 1, self.config.en_hidden_size)
             # batch_size, en_hidden_size
             decoder_input = torch.gather(encoder_output, dim=1, index=ptr_idxes).squeeze(1)
+
         # batch_size, max_len, max_len
         return decoder_outputs.transpose(0, 1)

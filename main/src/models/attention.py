@@ -12,6 +12,37 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class PtrNetAttention(nn.Module):
+    """docstring for PtrNetAttention"""
+    def __init__(self, config):
+        super(PtrNetAttention, self).__init__()
+        self.config = config
+        self.w1 = nn.Linear(config.en_hidden_size, config.de_hidden_size, bias=False)
+        self.w2 = nn.Linear(config.de_hidden_size, config.de_hidden_size, bias=False)
+        self.vt = nn.Linear(config.de_hidden_size, 1, bias=False)
+
+    def forward(self, h, encoder_output, src_lens):
+        # h: batch_size, de_hidden_size/en_hidden_size
+        # encoder_output: batch_size, max_seq_len, en_hidden_size
+        # src_lens: batch_size
+        # batch_size, max_seq_len, de_hidden_size 
+        encoder_output = self.w1(encoder_output)
+        # batch_size, 1, de_hidden_size
+        h = self.w2(h).unsqueeze(1)
+        # batch_size, max_seq_len
+        u = self.vt(torch.tanh(encoder_output + h)).squeeze(-1)
+        # max_seq_len
+        idx = torch.arange(end=encoder_output.shape[1], dtype=torch.float, device=self.config.device)
+        # batch_size, max_src_seq_len
+        idx = idx.unsqueeze(0).expand(u.shape)
+        # batch size, max_src_seq_len
+        src_lens = src_lens.unsqueeze(-1).expand(u.shape)
+        # batch_size, max_src_seq_len
+        mask = idx < src_lens
+        u.masked_fill(~mask, float('-inf'))
+        # batch_size, max_src_seq_len
+        return F.softmax(u, dim=1)
+
 class GRURNNDecoderAttention(nn.Module):
     """docstring for GRURNNDecoderAttention"""
     def __init__(self, config):
@@ -56,7 +87,6 @@ class GRURNNDecoderAttention(nn.Module):
         mask = idx < src_lens
         attn_energies[~mask] = float('-inf') 
         # batch_size, 1, max_src_seq_len
-        # return F.log_softmax(attn_energies, dim=1).unsqueeze(1)
         return F.softmax(attn_energies, dim=1).unsqueeze(1)
 
 
@@ -105,5 +135,4 @@ class LSTMRNNDecoderAttention(nn.Module):
         mask = idx < src_lens
         attn_energies[~mask] = float('-inf') 
         # batch_size, 1, max_src_seq_len
-        # return F.log_softmax(attn_energies, dim=1).unsqueeze(1)
         return F.softmax(attn_energies, dim=1).unsqueeze(1)
