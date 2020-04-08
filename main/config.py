@@ -17,7 +17,7 @@ class Config():
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
         # gru_ptr, lstm_ptr, bi_gru_ptr, bi_lstm_ptr
-        self.model_name = 'gru_ptr'
+        self.model_name = 'bi_lstm_ptr'
         self.load_check_point = False
         self.num_size = 100 # numbers involved
         self.seq_len = 5 # input sequence length
@@ -62,7 +62,9 @@ class Config():
         # val
         self.val_win_size = 512
         # model
-        self.learning_rate = 1e-3
+        self.learning_rate = 1e-4
+        if 'ptr' in self.model_name:
+            self.learning_rate = 5e-3
         self.teacher_forcing_ratio = 0.5
         self.clipping_threshold = 5
         # embedding

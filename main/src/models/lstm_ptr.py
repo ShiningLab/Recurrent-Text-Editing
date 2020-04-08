@@ -11,8 +11,8 @@ import torch
 import torch.nn as nn
 import random
 # private
-from .encoder import GRURNNEncoder
-from .decoder import GRUPtrNetDecoder
+from .encoder import LSTMRNNEncoder
+from .decoder import LSTMPtrNetDecoder
 
 
 class End2EndModelGraph(nn.Module): 
@@ -20,8 +20,8 @@ class End2EndModelGraph(nn.Module):
     def __init__(self, config): 
         super(End2EndModelGraph, self).__init__() 
         self.config = config
-        self.encoder = GRURNNEncoder(config)
-        self.decoder = GRUPtrNetDecoder(config)
+        self.encoder = LSTMRNNEncoder(config)
+        self.decoder = LSTMPtrNetDecoder(config)
         self.embedding = nn.Embedding(
             num_embeddings=2, 
             embedding_dim=self.config.embedding_size, 
@@ -31,10 +31,11 @@ class End2EndModelGraph(nn.Module):
         # xs: batch_size, max_len
         # argsoft_xs: batch_size, max_len
         batch_size = xs.shape[0]
-        # for ptr net, x_len = y_len
+        # for ptr net, x_len = y_len = max_len
         max_len = xs.shape[1]
-        # encoder_output: batch_size, max_len, en_hidden_size
-        # encoder_hidden: 1, batch_size, en_hidden_size
+        # encoder_output: batch_size, max_xs_seq_len, en_hidden_size
+        # encoder_hidden: (h, c)
+        # h, c: 1, batch_size, en_hidden_size
         encoder_output, decoder_hidden = self.encoder(xs, x_lens)
         # batch_size
         decoder_input = torch.empty(
@@ -45,13 +46,15 @@ class End2EndModelGraph(nn.Module):
         # batch_size, embedding_dim
         decoder_input = self.embedding(decoder_input)
         # max_len, batch_size, max_len
-        decoder_outputs = torch.zeros(max_len, batch_size, max_len, 
+        decoder_outputs = torch.zeros(
+            max_len, batch_size, max_len, 
             device=self.config.device)
         for i in range(max_len):
-            # decoder_hidden: 1, batch_size, de_hidden_size
+            # decoder_hidden: (h, c)
+            # h, c: 1, batch_size, en_hidden_size
             # attn_w: batch_size, max_seq_len
             decoder_hidden, attn_w = self.decoder(
-                decoder_input, decoder_hidden, encoder_output, x_lens)
+                decoder_input, decoder_hidden, encoder_output, x_lens) 
             # batch_size, max_seq_len
             decoder_outputs[i] = attn_w.log()
             # batch_size, 1

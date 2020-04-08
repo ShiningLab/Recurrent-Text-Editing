@@ -200,3 +200,75 @@ class AttBiLSTMRNNDecoder(nn.Module):
         # batch_size, vocab_size
         x = self.softmax(x)
         return x, (h, c)  
+
+
+class GRUPtrNetDecoder(nn.Module):
+    """docstring for GRUPtrNetDecoder"""
+    def __init__(self, config):
+        super(GRUPtrNetDecoder, self).__init__()
+        self.config = config
+        self.attn = PtrNetAttention(self.config)
+        self.attn_combine = torch.nn.Linear(
+            self.config.embedding_size + self.config.en_hidden_size, 
+            self.config.de_hidden_size)
+        self.lstm = nn.GRU(
+            input_size=self.config.de_hidden_size, 
+            hidden_size=self.config.de_hidden_size, 
+            num_layers=self.config.de_num_layers, 
+            batch_first=True, 
+            dropout=0, 
+            bidirectional=False)
+        self.gru_dropout = nn.Dropout(self.config.de_drop_rate)
+
+    def forward(self, x, hidden, encoder_output, src_lens):
+        # x: batch_size, embedding_dim/en_hidden_size
+        # hidden: 1, batch_size, de_hidden_size
+        # encoder_output: batch_size, max_src_seq_len, en_hidden_size
+        # src_lens: batch_size
+        # batch_size, max_seq_len
+        attn_w = self.attn(hidden[0], encoder_output, src_lens)
+        # batch_size, 1, en_hidden_size
+        context = attn_w.unsqueeze(1).bmm(encoder_output)
+        # batch_size, 1, de_hidden_size
+        x = self.attn_combine(torch.cat((x.unsqueeze(1), context), 2))
+        x = F.relu(x)
+        _, hidden = self.lstm(x, hidden)
+
+        return hidden, attn_w
+
+
+class LSTMPtrNetDecoder(nn.Module):
+    """docstring for LSTMPtrNetDecoder"""
+    def __init__(self, config):
+        super(LSTMPtrNetDecoder, self).__init__()
+        self.config = config
+        self.attn = PtrNetAttention(self.config)
+        self.attn_combine = torch.nn.Linear(
+            self.config.embedding_size + self.config.en_hidden_size, 
+            self.config.de_hidden_size)
+        self.lstm = nn.LSTM(
+            input_size=self.config.de_hidden_size, 
+            hidden_size=self.config.de_hidden_size, 
+            num_layers=self.config.de_num_layers, 
+            batch_first=True, 
+            dropout=0, 
+            bidirectional=False)
+        self.lstm_dropout = nn.Dropout(self.config.de_drop_rate)
+
+    def forward(self, x, hidden, encoder_output, src_lens):
+        # x: batch_size, embedding_dim/en_hidden_size
+        # hidden: (h, c)
+        # h, c: 1, batch_size, de_hidden_size
+        # encoder_output: batch_size, max_src_seq_len, en_hidden_size
+        # src_lens: batch_size
+        # batch_size, max_seq_len
+        attn_w = self.attn(hidden[0][0], encoder_output, src_lens)
+        # batch_size, 1, en_hidden_size
+        context = attn_w.unsqueeze(1).bmm(encoder_output)
+        # batch_size, 1, de_hidden_size
+        x = self.attn_combine(torch.cat((x.unsqueeze(1), context), 2))
+        x = F.relu(x)
+        _, (h, c) = self.lstm(x, hidden)
+        h = self.lstm_dropout(h)
+
+        return (h, c), attn_w

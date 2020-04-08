@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import random
 # private
-from .encoder import GRURNNEncoder
+from .encoder import BiGRURNNEncoder
 from .decoder import GRUPtrNetDecoder
 
 
@@ -20,7 +20,7 @@ class End2EndModelGraph(nn.Module):
     def __init__(self, config): 
         super(End2EndModelGraph, self).__init__() 
         self.config = config
-        self.encoder = GRURNNEncoder(config)
+        self.encoder = BiGRURNNEncoder(config)
         self.decoder = GRUPtrNetDecoder(config)
         self.embedding = nn.Embedding(
             num_embeddings=2, 

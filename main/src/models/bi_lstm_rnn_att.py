@@ -11,8 +11,8 @@ import torch
 import torch.nn as nn
 import random
 # private
-from .encoder import *
-from .decoder import *
+from .encoder import BiLSTMRNNEncoder
+from .decoder import AttBiLSTMRNNDecoder
 
 
 class End2EndModelGraph(nn.Module): 

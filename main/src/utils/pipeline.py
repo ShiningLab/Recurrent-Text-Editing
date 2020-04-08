@@ -18,7 +18,7 @@ from ..models import (
     gru_rnn, lstm_rnn, 
     bi_gru_rnn, bi_lstm_rnn, 
     bi_gru_rnn_att, bi_lstm_rnn_att, 
-    gru_ptr)
+    gru_ptr, lstm_ptr, bi_gru_ptr, bi_lstm_ptr)
 
 
 class OfflineEnd2EndDataset(torch_data.Dataset):
@@ -124,56 +124,61 @@ def pick_model(config, method):
             return transformer.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return transformer.RecursionModelGraph(config).to(config.device)
-        else:
-            raise ValueError('Wrong model to pick.')
+
     elif config.model_name == 'gru_rnn':
         if method == 'end2end':
             return gru_rnn.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return gru_rnn.RecursionModelGraph(config).to(config.device)
-        else:
-            raise ValueError('Wrong model to pick.')
+
     elif config.model_name == 'lstm_rnn':
         if method == 'end2end':
             return lstm_rnn.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return lstm_rnn.RecursionModelGraph(config).to(config.device)
-        else:
-            raise ValueError('Wrong model to pick.')
+
     elif config.model_name == 'bi_gru_rnn':
         if method == 'end2end':
             return bi_gru_rnn.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return bi_gru_rnn.RecursionModelGraph(config).to(config.device)
-        else:
-            raise ValueError('Wrong model to pick.')
+
     elif config.model_name == 'bi_lstm_rnn':
         if method == 'end2end':
             return bi_lstm_rnn.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return bi_lstm_rnn.RecursionModelGraph(config).to(config.device)
-        else:
-            raise ValueError('Wrong model to pick.')
+
     elif config.model_name =='bi_gru_rnn_att':
         if method == 'end2end':
             return bi_gru_rnn_att.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return bi_gru_rnn_att.RecursionModelGraph(config).to(config.device)
-        else:
-            raise ValueError('Wrong model to pick.')
+
     elif config.model_name =='bi_lstm_rnn_att':
         if method == 'end2end':
             return bi_lstm_rnn_att.End2EndModelGraph(config).to(config.device)
         elif method == 'recursion':
             return bi_lstm_rnn_att.RecursionModelGraph(config).to(config.device)
-        else:
-            raise ValueError('Wrong model to pick.')
+
     elif config.model_name == 'gru_ptr':
         if method == 'end2end':
             return gru_ptr.End2EndModelGraph(config).to(config.device)
-        else:
-            raise ValueError('Wrong model to pick.')
-    raise ValueError('Wrong model to pick.')
+
+    elif config.model_name == 'lstm_ptr':
+        if method == 'end2end':
+            return lstm_ptr.End2EndModelGraph(config).to(config.device)
+
+    elif config.model_name == 'bi_gru_ptr':
+        if method == 'end2end':
+            return bi_gru_ptr.End2EndModelGraph(config).to(config.device)
+
+    elif config.model_name == 'bi_lstm_ptr':
+        if method == 'end2end':
+            return bi_lstm_ptr.End2EndModelGraph(config).to(config.device)
+
+    else:
+        raise ValueError('Wrong model to pick.')
 
 def get_list_mean(l: list) -> float:
     return sum(l) / len(l)
