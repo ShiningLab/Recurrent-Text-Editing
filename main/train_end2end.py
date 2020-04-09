@@ -166,9 +166,9 @@ class TextEditor(object):
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
             for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
-                # print(x_lens.cpu().detach().numpy()[0])
-                # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
-                # print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+                print(x_lens.cpu().detach().numpy()[0])
+                print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
+                print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
             #     break
             # break
                 if 'ptr' in self.config.model_name: 

@@ -11,7 +11,7 @@ class Config():
       def __init__(self): 
         # data source
         self.data_src = 'aoi' # aoi, nss
-        self.method = 'recursion' # end2end, recursion, tagging
+        self.method = 'tagging' # end2end, recursion, tagging
         self.data_mode = 'online' # online, offline 
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
@@ -83,6 +83,8 @@ class Config():
         # transformer specific dims
         self.ffnn_dim = 2048
         self.num_heads = 8
+        self.tfm_en_num_layers = 1
+        self.tfm_de_num_layers = 1
 
 class End2EndConfig(Config):
     """docstring for End2EndConfig"""

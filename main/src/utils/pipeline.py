@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-__author__ = 'Shining'
-__email__ = 'mrshininnnnn@gmail.com'
-
-
 #public
 import torch
 from torch.utils import data as torch_data
@@ -232,6 +228,7 @@ def rm_pads(srcs, tgts, preds, pad_idx):
     srcs = [rm_idx(src, pad_idx) for src in srcs] 
     tgts = [rm_idx(tgt, pad_idx) for tgt in tgts] 
     preds = [rm_idx(pred, pad_idx) for pred in preds] 
+    # remove end symbol
     return srcs, tgts, preds
 
 def save_check_point(step, epoch, model_state_dict, opt_state_dict, path):
@@ -251,18 +248,19 @@ def rand_sample(srcs, tars, preds, src_dict, tar_dict, pred_dict):
     pred = translate(pred, pred_dict)
     return ' '.join(src), ' '.join(tar), ' '.join(pred)
 
-# for bubble sort
-def find_next_step_in_bubble_sort(seq): 
-    n = len(seq) 
-    for j in range(0, n-1):
-        if seq[j] > seq[j+1]:
-            return j
-    return -1
-# for bubble sort
-def bubble_sort_step(seq, j): 
-    # perform one bubble sort step
-    seq[j], seq[j+1] = seq[j+1], seq[j] 
-    return seq
+# # for bubble sort
+# def find_next_step_in_bubble_sort(seq): 
+#     n = len(seq) 
+#     for j in range(0, n-1):
+#         if seq[j] > seq[j+1]:
+#             return j
+#     return -1
+# # for bubble sort
+# def bubble_sort_step(seq, j): 
+#     # perform one bubble sort step
+#     seq[j], seq[j+1] = seq[j+1], seq[j] 
+#     return seq
+
 # for swap sort
 def find_src_index_to_swap(x: list, y: list) -> int:
     if x == y:
@@ -392,28 +390,41 @@ def tagging_online_generator(y: list) -> list:
 
         return x, y_
 
-def subsequent_mask(size):
-    """Mask out subsequent positions."""
-    attn_shape = (size, size)
-    mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
-    mask =  torch.from_numpy(mask) == 0
-    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-    return mask
+# def subsequent_mask(size):
+#     """Mask out subsequent positions."""
+#     attn_shape = (size, size)
+#     mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+#     mask =  torch.from_numpy(mask) == 0
+#     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+#     return mask
 
 
-def make_std_mask(tgt, pad):
-    """Create a mask to hide padding and future words."""
-    tgt_mask = (tgt != pad).unsqueeze(-2)
-    tgt_mask = tgt_mask & torch.autograd.Variable(subsequent_mask(tgt.size(-1)).type_as(tgt_mask.data))
-    tgt_mask = tgt_mask.float().masked_fill(tgt_mask == 0, float('-inf')).masked_fill(tgt_mask == 1, float(0.0))
-    return tgt_mask
+# def make_std_mask(tgt, pad):
+#     """Create a mask to hide padding and future words."""
+#     tgt_mask = (tgt != pad).unsqueeze(-2)
+#     tgt_mask = tgt_mask & torch.autograd.Variable(subsequent_mask(tgt.size(-1)).type_as(tgt_mask.data))
+#     tgt_mask = tgt_mask.float().masked_fill(tgt_mask == 0, float('-inf')).masked_fill(tgt_mask == 1, float(0.0))
+#     return tgt_mask
 
 
-def prepare_masks(sz, config):
-    """Create source and target sequence mask for the transformer model. Called after padding """
-    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-    mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-    return mask
+# def prepare_masks(sz, config):
+#     """Create source and target sequence mask for the transformer model. Called after padding """
+#     mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+#     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+#     return mask
+
+# def generate_source_key_padding_mask(src_lens, max_len):
+#     # src_lens: batch_size
+#     # batch_size, seq_len
+#     idxes = torch.arange(end=max_len, 
+#         dtype=torch.float, 
+#         device=src_lens.device).repeat(src_lens.size(0), 1)
+#     # batch_size, seq_len 
+#     src_lens = src_lens.repeat(idxes.size(1), 1).transpose(0, 1)
+#     # batch_size, seq_len
+#     mask = idxes < src_lens
+    
+#     return ~mask
 
 def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config, train=True): 
     # vocab to index
@@ -449,23 +460,17 @@ def is_int(v):
     except:
         return False
 
-def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, is_logit=True): 
+def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config): 
     # detach from devices
     xs = xs.cpu().detach().numpy() 
-    if is_logit:
-        ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() 
-    else:
-        ys_ = ys_.cpu().detach().numpy()
+    ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() 
     # remove padding idx
     xs = [rm_idx(x, config.pad_idx) for x in xs] 
-    if config.model_name == 'transformer':
-        # remove start symbol
-        ys_ = [y_[1:] for y_ in ys_]
+    # print(translate(ys_[0], tgt_idx2vocab_dict))
     # convert index to vocab
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
     # inference function for Arithmetic Operators Insertion (AOI)
-    # print(ys_[0])
     if config.data_src == 'aoi':
         if np.array_equal(np.array(ys_)[:, 0], np.array(['<completion>']*len(ys_))):
             done = True
@@ -513,21 +518,21 @@ def recursive_infer(xs, x_lens, model, max_infer_step,
                 src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config)
             return xs, x_lens, done
 
-def recursive_infer_transformer(xs, x_lens, model, src_mask, tgt_mask, 
-    max_infer_step, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done=False):
-    # recursive inference for transformer
-    if max_infer_step == 0:
-        return xs, x_lens, False
-    else:
-        xs, x_lens, done = recursive_infer_transformer(xs, x_lens, model, src_mask, tgt_mask, 
-            max_infer_step-1, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done)
-        if done:
-            return xs, x_lens, done
-        else:
-            ys_ = model(xs, x_lens, src_mask, tgt_mask)
-            xs, x_lens, done = one_step_infer(xs, ys_, 
-                src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, False)
-            return xs, x_lens, done
+# def recursive_infer_transformer(xs, x_lens, model, src_mask, tgt_mask, 
+#     max_infer_step, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done=False):
+#     # recursive inference for transformer
+#     if max_infer_step == 0:
+#         return xs, x_lens, False
+#     else:
+#         xs, x_lens, done = recursive_infer_transformer(xs, x_lens, model, src_mask, tgt_mask, 
+#             max_infer_step-1, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done)
+#         if done:
+#             return xs, x_lens, done
+#         else:
+#             ys_ = model(xs, x_lens, src_mask, tgt_mask)
+#             xs, x_lens, done = one_step_infer(xs, ys_, 
+#                 src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, False)
+#             return xs, x_lens, done
 
 def tagging_execution(x, y_):
     p = []
