@@ -10,22 +10,22 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.data_src = 'nss' # aoi, nss
-        self.method = 'end2end' # end2end, recursion, tagging
+        self.data_src = 'aoi' # aoi, nss
+        self.method = 'recursion' # end2end, recursion, tagging
         self.data_mode = 'online' # online, offline 
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
         # gru_ptr, lstm_ptr, bi_gru_ptr, bi_lstm_ptr
-        self.model_name = 'bi_lstm_ptr'
+        self.model_name = 'transformer'
         self.load_check_point = False
-        self.num_size = 100 # numbers involved
+        self.num_size = 10 # numbers involved
         self.seq_len = 5 # input sequence length
         self.data_size = 10000 # total data size
         # I/O directory
         # current path
         self.CURR_PATH = os.path.dirname(os.path.realpath(__file__))
-        # data task path
+        # data task patdh
         self.TASK_PATH = os.path.join('num_size_{}'.format(self.num_size), 
             'seq_len_{}'.format(self.seq_len), 'data_size_{}'.format(self.data_size))
         # data dictionary in json file
@@ -66,7 +66,7 @@ class Config():
         if 'ptr' in self.model_name:
             self.learning_rate = 5e-3
         self.teacher_forcing_ratio = 0.5
-        self.clipping_threshold = 5
+        self.clipping_threshold = 0.5
         # embedding
         self.embedding_size = 512
         # encoder

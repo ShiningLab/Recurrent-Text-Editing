@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 
+# train graph
 class End2EndModelGraph(nn.Module):
 
     def __init__(self, config):
@@ -39,7 +40,7 @@ class End2EndModelGraph(nn.Module):
             xs = self.src_embedding_layer(xs) * math.sqrt(self.config.embedding_size)
             # shape: [src_seq_len, batch_size, emb_size]
             xs = xs.permute(1, 0, 2)
-            # shape: [tgt_seq_len, batch_size, emb_size]
+            # shape: [batch_size, src_seq_len, emb_size]
             ys = self.tgt_embedding_layer(ys)
             # shape: [tgt_seq_len, batch_size, emb_size]
             ys = ys.permute(1, 0, 2)
@@ -51,14 +52,16 @@ class End2EndModelGraph(nn.Module):
             output = F.log_softmax(self.generator(output), dim=-1)
             # shape: [batch_size, tgt_seq_len, tgt_vocab_size]
             output = output.permute(1, 0, 2)
+
             return output
+
         else:
             max_ys_seq_len = ys.shape[1]
             # shape: [batch_size, src_seq_len, emb_size]
             xs = self.src_embedding_layer(xs) * math.sqrt(self.config.embedding_size)
-            xs = self.pos_encoder(xs)
             # shape: [src_seq_len, batch_size, emb_size]
             xs = xs.permute(1, 0, 2)
+            xs = self.pos_encoder(xs)
             # (max_len, batch_size, hidden_dim)
             encoder_hidden_states = self.transformer_model.encoder(xs, src_mask)
             ys = torch.ones(xs.size(1), 1).fill_(self.config.start_idx).type_as(xs.data).long()
@@ -87,12 +90,12 @@ class End2EndModelGraph(nn.Module):
                 mask_flip[match_end_idx == 0] = 1
                 mask_flip[match_end_idx != 0] = 0
                 ys_mask = ys_mask * mask_flip.long()
-                    # (cur_seq_len)
+                # (cur_seq_len)
                 ys = torch.cat([ys.long(), next_word.data.long()], dim=1)
 
             return ys
 
-
+# test graph
 class RecursionModelGraph(nn.Module):
 
     def __init__(self, config):
@@ -111,66 +114,71 @@ class RecursionModelGraph(nn.Module):
                                                 dim_feedforward=config.ffnn_dim,
                                                 dropout=config.en_drop_rate)
         # generator layer (a.k.a. the final linear layer)
-        self.generator = nn.Linear(config.en_hidden_size, config.tgt_vocab_size)  # encoder hidden dim = decoder hidden dim
+        self.generator = nn.Linear(config.de_hidden_size, config.tgt_vocab_size)  # encoder hidden dim = decoder hidden dim
 
-    def forward(self, xs, x_lens, ys, src_mask, tgt_mask):
-        if self.training:
-            # shape: [batch_size, src_seq_len, emb_size]
-            xs = self.src_embedding_layer(xs) * math.sqrt(self.config.embedding_size)
-            # shape: [src_seq_len, batch_size, emb_size]
-            xs = xs.permute(1, 0, 2)
-            # shape: [tgt_seq_len, batch_size, emb_size]
-            ys = self.tgt_embedding_layer(ys)
-            # shape: [tgt_seq_len, batch_size, emb_size]
-            ys = ys.permute(1, 0, 2)
-            # shape: [src_seq_len, batch_size, emb_size]
-            xs = self.pos_encoder(xs)
-            # shape: [tgt_seq_len, batch_size, emb_size]
-            output = self.transformer_model(xs, ys, src_mask=src_mask, tgt_mask=tgt_mask)
-            # shape: [tgt_seq_len, batch_size, tgt_vocab_size]
-            output = F.log_softmax(self.generator(output), dim=-1)
-            # shape: [batch_size, tgt_seq_len, tgt_vocab_size]
-            output = output.permute(1, 0, 2)
-            return output
-        else:
-            max_ys_seq_len = self.config.tgt_seq_len
-            # shape: [batch_size, src_seq_len, emb_size]
-            xs = self.src_embedding_layer(xs) * math.sqrt(self.config.embedding_size)
-            xs = self.pos_encoder(xs)
-            # shape: [src_seq_len, batch_size, emb_size]
-            xs = xs.permute(1, 0, 2)
-            # (max_len, batch_size, hidden_dim)
-            encoder_hidden_states = self.transformer_model.encoder(xs, src_mask)
-            ys = torch.ones(xs.size(1), 1).fill_(self.config.start_idx).type_as(xs.data).long()
-            ys_mask = torch.ones(xs.size(1), 1).fill_(1).type_as(xs.data).long()
-            # end_list = torch.ones(xs.size(1), 1).fill_(self.config.end_idx).type_as(xs.data).long()
-            for i in range(max_ys_seq_len- 1):
-                # shape: [tgt_seq_len, batch_size, emb_size]
-                ys_emb = self.tgt_embedding_layer(ys)
-                # shape: [tgt_seq_len, batch_size, emb_size]
-                ys_emb = ys_emb.permute(1, 0, 2)
-                # (cur_seq_len, batch_size, hidden_dim)
-                out = self.transformer_model.decoder(ys_emb,
-                                                     encoder_hidden_states,
-                                                     tgt_mask=Variable(self.transformer_model.generate_square_subsequent_mask(ys_emb.size(0)).type_as(xs.data)),
-                                                     memory_mask=None)
-                # (1, batch_size, hidden_dim)
-                out = out[-1, :, :].unsqueeze(0)
-                # (1, batch_size, vocab_size)
-                prob = self.generator(out)
-                # (1) (1)
-                prob, next_word = torch.max(prob, dim=2)
-                next_word = (next_word.permute(1, 0) * ys_mask).type_as(xs.data)
-                # process sequences that reach end symbol TODO: make this more general, currently assume the padding idx is 0!
-                # match_end_idx = (next_word.long() == end_list).type_as(xs.data)
-                # mask_flip = match_end_idx.clone()
-                # mask_flip[match_end_idx == 0] = 1
-                # mask_flip[match_end_idx != 0] = 0
-                # ys_mask = ys_mask * mask_flip.long()
-                # (cur_seq_len)
-                ys = torch.cat([ys.long(), next_word.data.long()], dim=1)
+    def forward(self, xs, x_lens, src_mask, tgt_mask):
+        xs = self.src_embedding_layer(xs) * math.sqrt(self.config.embedding_size)
+        xs = self.pos_encoder(xs)
+        # shape: [src_seq_len, batch_size, emb_size]
+        xs = xs.permute(1, 0, 2)
+        # (max_len, batch_size, hidden_dim)
+        encoder_hidden_states = self.transformer_model.encoder(xs, src_mask)
+        # batch_size, max_len
+        decoder_outputs = torch.empty(
+            (xs.size(1), self.config.tgt_seq_len+1),
+            dtype=torch.int64, 
+            device=self.config.device).fill_(self.config.start_idx)
+        for i in range(self.config.tgt_seq_len): 
+            # cur_seq_len, batch_size, emb_size
+            decoder_input = self.tgt_embedding_layer(decoder_outputs[:, :i+1]).transpose(0, 1)
+            # cur_seq_len, cur_seq_len
+            tgt_mask = self.transformer_model.generate_square_subsequent_mask(i+1).to(self.config.device)
+            # cur_seq_len, batch_size, de_hidden_size
+            decoder_output = self.transformer_model.decoder(
+                tgt=decoder_input, 
+                memory=encoder_hidden_states, 
+                tgt_mask=tgt_mask)
+            # batch_size
+            _, decoder_output = self.generator(decoder_output)[-1].max(1)
+            decoder_outputs[:, i+1] = decoder_output
 
-            return ys
+        return decoder_outputs
+            # # shape: [cur_seq_len, batch_size, emb_size]
+            # ys_emb = self.tgt_embedding_layer(ys)
+            # # shape: [cur_seq_len, batch_size, emb_size]
+            # ys_emb = ys_emb.permute(1, 0, 2)
+            # # (cur_seq_len, batch_size, hidden_dim)
+            # out = self.transformer_model.decoder(
+            #     tgt=ys_emb, 
+            #     memory=encoder_hidden_states, 
+            #     tgt_mask=self.transformer_model.generate_square_subsequent_mask(ys_emb.size(0)), 
+            #     memory_mask=None)
+            # # batch_size
+            # _, next_word = self.generator(out[-1]).max(dim=-1)
+            # print(self.generator(out[-1])[0])
+            # # batch_szie, cur_seq_len
+            # ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=-1)
+            # print(ys[0])
+            # print(ys.shape)
+            # break
+            # print(out[-1].shape)
+            # # (1, batch_size, hidden_dim)
+            # out = out[-1, :, :].unsqueeze(0)
+            # # (1, batch_size, vocab_size)
+            # _, next_word = self.generator(out).max(dim=2) # 1, batch_size
+            # # (1) (1)
+            # # _, next_word = torch.max(prob, dim=2)
+            # # next_word = (next_word.permute(1, 0) * ys_mask).type_as(xs.data)
+            # # process sequences that reach end symbol TODO: make this more general, currently assume the padding idx is 0!
+            # # match_end_idx = (next_word.long() == end_list).type_as(xs.data)
+            # # mask_flip = match_end_idx.clone()
+            # # mask_flip[match_end_idx == 0] = 1
+            # # mask_flip[match_end_idx != 0] = 0
+            # # ys_mask = ys_mask * mask_flip.long()
+            # # (cur_seq_len)
+            # ys = torch.cat([ys.long(), next_word.permute(1, 0).data.long()], dim=1)
+
+        # return ys
 
 
 class PositionalEncoding(nn.Module):

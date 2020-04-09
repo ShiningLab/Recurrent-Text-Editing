@@ -465,6 +465,7 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
     # inference function for Arithmetic Operators Insertion (AOI)
+    # print(ys_[0])
     if config.data_src == 'aoi':
         if np.array_equal(np.array(ys_)[:, 0], np.array(['<completion>']*len(ys_))):
             done = True
@@ -512,19 +513,18 @@ def recursive_infer(xs, x_lens, model, max_infer_step,
                 src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config)
             return xs, x_lens, done
 
-def recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask, 
+def recursive_infer_transformer(xs, x_lens, model, src_mask, tgt_mask, 
     max_infer_step, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done=False):
     # recursive inference for transformer
     if max_infer_step == 0:
         return xs, x_lens, False
     else:
-        xs, x_lens, done = recursive_infer_transformer(xs, x_lens, ys, model, src_mask, tgt_mask, 
+        xs, x_lens, done = recursive_infer_transformer(xs, x_lens, model, src_mask, tgt_mask, 
             max_infer_step-1, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done)
         if done:
             return xs, x_lens, done
         else:
-            model.eval()
-            ys_ = model(xs, x_lens, ys, src_mask, tgt_mask)
+            ys_ = model(xs, x_lens, src_mask, tgt_mask)
             xs, x_lens, done = one_step_infer(xs, ys_, 
                 src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, False)
             return xs, x_lens, done
