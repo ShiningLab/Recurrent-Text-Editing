@@ -166,9 +166,9 @@ class TextEditor(object):
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
             for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
-                print(x_lens.cpu().detach().numpy()[0])
-                print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
-                print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+                # print(x_lens.cpu().detach().numpy()[0])
+                # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
+                # print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
             #     break
             # break
                 if 'ptr' in self.config.model_name: 
@@ -296,9 +296,9 @@ class TextEditor(object):
             for xs, x_lens, ys in testset_generator:
                 if 'ptr' in self.config.model_name: 
                     argsort_xs = torch.argsort(xs)
-                    ys_ = self.model(xs, x_lens, argsort_xs, 0.) 
+                    ys_ = model(xs, x_lens, argsort_xs, 0.) 
                 else:
-                    ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=0.)
+                    ys_ = model(xs, x_lens, ys, teacher_forcing_ratio=0.)
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
