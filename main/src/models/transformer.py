@@ -159,6 +159,6 @@ class RecursionModelGraph(nn.Module):
             # batch_size, tgt_vocab_size
             decoder_outputs[i] = decoder_output
             # batch_size, cur_seq_len
-            decoder_inputs[:, i+1] =  decoder_output.max(1)[1]
+            decoder_inputs[:, i+1] = decoder_output.max(1)[1]
         # batch_size, tgt_seq_len
         return decoder_outputs.transpose(0, 1)
