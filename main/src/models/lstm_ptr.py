@@ -66,4 +66,4 @@ class End2EndModelGraph(nn.Module):
             decoder_input = torch.gather(encoder_output, dim=1, index=ptr_idxes).squeeze(1)
 
         # batch_size, max_len, max_len
-        return decoder_outputs.transpose(0, 1)
+        return decoder_outputs.permute(1, 0, 2)

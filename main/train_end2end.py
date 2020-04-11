@@ -40,7 +40,7 @@ class TextEditor(object):
 
     def setup_gpu(self): 
         # verify devices which can be either cpu or gpu
-        self.config.use_gpu = torch.cuda.is_available()
+        self.config.use_gpu =True
         self.config.device = 'cuda' if self.config.use_gpu else 'cpu'
 
     def load_vocab(self):
@@ -166,9 +166,9 @@ class TextEditor(object):
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
             for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
-                print(x_lens.cpu().detach().numpy()[0])
-                print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
-                print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+                # print(x_lens.cpu().detach().numpy()[0])
+                # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
+                # print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
             #     break
             # break
                 if 'ptr' in self.config.model_name: 
@@ -197,7 +197,8 @@ class TextEditor(object):
             # print(ys_[0])
             ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
             if 'ptr' in self.config.model_name:
-                ys_ = np.take_along_axis(ys, ys_, axis=-1)
+                ys = np.take_along_axis(xs, argsort_xs.cpu().detach().numpy(), axis=-1)
+                ys_ = np.take_along_axis(xs, ys_, axis=-1)
             xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
             # evaluation
             eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict, True)
@@ -206,7 +207,7 @@ class TextEditor(object):
             print(eva_msg)
             # random sample to show
             src, tar, pred = rand_sample(xs, ys, ys_, 
-                self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
+                self.src_idx2vocab_dict, self.src_idx2vocab_dict, self.src_idx2vocab_dict)
             print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
             # val
             self.validate()
@@ -249,8 +250,9 @@ class TextEditor(object):
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
-                if 'ptr' in self.config.model_name: 
-                    ys_ = np.take_along_axis(ys, ys_, axis=-1)
+                if 'ptr' in self.config.model_name:
+                    ys = np.take_along_axis(xs, argsort_xs.cpu().detach().numpy(), axis=-1)
+                    ys_ = np.take_along_axis(xs, ys_, axis=-1)
                 xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
                 all_xs += xs
                 all_ys += ys 
@@ -265,7 +267,7 @@ class TextEditor(object):
         self.val_log.append(eva_msg)
         # random sample to show
         src, tar, pred = rand_sample(all_xs, all_ys, all_ys_, 
-            self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
+            self.src_idx2vocab_dict, self.src_idx2vocab_dict, self.src_idx2vocab_dict)
         print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
         # early stopping
         if eva_matrix.key_metric >= self.val_key_metric:
@@ -302,8 +304,9 @@ class TextEditor(object):
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
-                if 'ptr' in self.config.model_name: 
-                    ys_ = np.take_along_axis(ys, ys_, axis=-1)
+                if 'ptr' in self.config.model_name:
+                    ys = np.take_along_axis(xs, argsort_xs.cpu().detach().numpy(), axis=-1)
+                    ys_ = np.take_along_axis(xs, ys_, axis=-1)
                 xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
                 all_xs += xs
                 all_ys += ys 
@@ -317,7 +320,7 @@ class TextEditor(object):
         self.test_log.append(eva_msg)
         # random sample to show
         src, tar, pred = rand_sample(all_xs, all_ys, all_ys_, 
-            self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
+            self.src_idx2vocab_dict, self.src_idx2vocab_dict, self.src_idx2vocab_dict)
         print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
 
         self.test_src = [' '.join(translate(x, self.src_idx2vocab_dict)) for x in all_xs]

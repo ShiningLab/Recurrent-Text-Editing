@@ -28,7 +28,7 @@ class End2EndDataPreprocess(object):
 
     def init_paths(self):
         # load path
-        self.data_src = 'nss'
+        self.data_src = './'
         self.indir = os.path.join(self.data_src, 
             'num_size_{}'.format(self.num_size), 
             'seq_len_{}'.format(self.seq_len), 

@@ -14,7 +14,8 @@ from ..models import (
     gru_rnn, lstm_rnn, 
     bi_gru_rnn, bi_lstm_rnn, 
     bi_gru_rnn_att, bi_lstm_rnn_att, 
-    gru_ptr, lstm_ptr, bi_gru_ptr, bi_lstm_ptr)
+    gru_ptr, lstm_ptr, bi_gru_ptr, bi_lstm_ptr,
+    lstm_ptrnet)
 
 
 class OfflineEnd2EndDataset(torch_data.Dataset):
@@ -160,6 +161,10 @@ def pick_model(config, method):
     elif config.model_name == 'gru_ptr':
         if method == 'end2end':
             return gru_ptr.End2EndModelGraph(config).to(config.device)
+
+    elif config.model_name == 'lstm_ptr_Z':
+        if method == 'end2end':
+            return lstm_ptrnet.End2EndModelGraph(config).to(config.device)
 
     elif config.model_name == 'lstm_ptr':
         if method == 'end2end':

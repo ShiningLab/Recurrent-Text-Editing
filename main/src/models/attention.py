@@ -37,10 +37,10 @@ class PtrNetAttention(nn.Module):
         idx = idx.unsqueeze(0).expand(u.shape)
         # batch size, max_src_seq_len
         src_lens = src_lens.unsqueeze(-1).expand(u.shape)
-        # batch_size, max_src_seq_len
-        mask = idx < src_lens
-        u.masked_fill(~mask, float('-inf'))
-        # batch_size, max_src_seq_len
+        # # batch_size, max_src_seq_len
+        # mask = idx < src_lens
+        # u.masked_fill(~mask, float('-inf'))
+        # # batch_size, max_src_seq_len
         return F.softmax(u, dim=1)
 
 class GRURNNDecoderAttention(nn.Module):
