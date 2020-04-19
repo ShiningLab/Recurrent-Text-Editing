@@ -39,7 +39,7 @@ def show_plot(data_dict, colors, title, xlabel, ylabel, save_path, xticks=None, 
     if marker:
         for key, color in zip(data_dict, colors):
             plt.plot(
-                range(len(data_dict[key])) if yticks is None else yticks, 
+                range(len(data_dict[key])) if xticks is None else xticks, 
                 data_dict[key], 
                 marker='o', 
                 markersize= 12, 
@@ -49,7 +49,7 @@ def show_plot(data_dict, colors, title, xlabel, ylabel, save_path, xticks=None, 
     else:
         for key, color in zip(data_dict, colors):
             plt.plot(
-                range(len(data_dict[key])) if yticks is None else yticks, 
+                range(len(data_dict[key])) if xticks is None else xticks, 
                 data_dict[key], 
                 color=color, 
                 linewidth=1, 
@@ -57,7 +57,10 @@ def show_plot(data_dict, colors, title, xlabel, ylabel, save_path, xticks=None, 
         
     plt.title(save_path + ' | ' + title)
     plt.legend()
-    plt.xticks(fontsize=14)
+    if xticks is None:
+        plt.xticks(fontsize=14)
+    else:
+        plt.xticks(xticks, fontsize=14)
     plt.xlabel(xlabel, fontsize=14)
     plt.yticks(fontsize=14)
     plt.ylabel(ylabel, fontsize=14)

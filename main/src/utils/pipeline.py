@@ -5,8 +5,10 @@
 import torch
 from torch.utils import data as torch_data
 
+import copy
 import random
 import numpy as np
+np.random.seed(0)
 
 # private
 from ..models import (
@@ -17,14 +19,14 @@ from ..models import (
     gru_ptr, lstm_ptr, bi_gru_ptr, bi_lstm_ptr)
 
 
-class OfflineEnd2EndDataset(torch_data.Dataset):
-    """docstring for OfflineEnd2EndDataset"""
+class OfflineDataset(torch_data.Dataset):
+    """docstring for OfflineDataset"""
     def __init__(self, data_dict):
-        super(OfflineEnd2EndDataset, self).__init__()
+        super(OfflineDataset, self).__init__()
         self.xs = data_dict['xs']
         self.ys = data_dict['ys']
-        self.data_size = len(self.xs)
-
+        self.data_size = len(self.ys)
+        
     def __len__(self): 
         return self.data_size
 
@@ -32,87 +34,19 @@ class OfflineEnd2EndDataset(torch_data.Dataset):
         return self.xs[idx], self.ys[idx]
 
 
-class OnlineEnd2EndDataset(torch_data.Dataset):
-    """docstring for OnlineEnd2EndDataset"""
-    def __init__(self, data_dict, data_src):
-        super(OnlineEnd2EndDataset, self).__init__() 
-        self.data_src = data_src
-        self.xs = data_dict['xs']
+class OnlineDataset(torch_data.Dataset):
+    """docstring for OnlineDataset"""
+    def __init__(self, data_dict):
+        super(OnlineDataset, self).__init__() 
         self.ys = data_dict['ys']
-        self.data_size = len(self.xs)
+        self.data_size = len(self.ys)
 
     def __len__(self): 
         return self.data_size
 
     def __getitem__(self, idx): 
-        if self.data_src == 'aoi':
-            return self.ys[idx]
-        elif self.data_src == 'nss':
-            return self.xs[idx], self.ys[idx]
+        return self.ys[idx]
 
-
-class OfflineRecursionDataset(torch_data.Dataset):
-      """Custom data.Dataset compatible with data.DataLoader."""
-      def __init__(self, data_dict):
-            super(OfflineRecursionDataset, self).__init__()
-            self.xs = data_dict['xs']
-            self.ys_ = data_dict['ys_']
-            self.data_size = len(self.xs)
-
-      def __len__(self):
-            return self.data_size
-
-      def __getitem__(self, idx):
-            return self.xs[idx], self.ys_[idx]
-
-class OnlineRecursionDataset(torch_data.Dataset):
-      """Custom data.Dataset compatible with data.DataLoader."""
-      def __init__(self, data_dict, data_src):
-            super(OnlineRecursionDataset, self).__init__()
-            self.data_src = data_src
-            self.xs = data_dict['xs']
-            self.ys = data_dict['ys']
-            self.data_size = len(self.xs)
-
-      def __len__(self):
-            return self.data_size
-
-      def __getitem__(self, idx):
-        if self.data_src == 'aoi':
-            return self.ys[idx]
-        elif self.data_src == 'nss':
-            # for swap sort
-            return self.xs[idx], self.ys[idx]
-            # for bubble sort
-            # return self.xs[idx]
-
-
-class OfflineTaggingDataset(torch_data.Dataset):
-      """Custom data.Dataset compatible with data.DataLoader."""
-      def __init__(self, data_dict):
-            super(OfflineTaggingDataset, self).__init__()
-            self.xs = data_dict['xs']
-            self.ys_ = data_dict['ys_']
-            self.data_size = len(self.xs)
-
-      def __len__(self):
-            return self.data_size
-
-      def __getitem__(self, idx):
-            return self.xs[idx], self.ys_[idx]
-
-class OnlineTaggingDataset(torch_data.Dataset):
-      """Custom data.Dataset compatible with data.DataLoader."""
-      def __init__(self, data_dict):
-            super(OnlineTaggingDataset, self).__init__()
-            self.ys = data_dict['ys']
-            self.data_size = len(self.ys)
-
-      def __len__(self):
-            return self.data_size
-
-      def __getitem__(self, idx):
-            return self.ys[idx]
 
 def pick_model(config, method):
     if config.model_name == 'transformer':
@@ -224,11 +158,15 @@ def translate(seq: list, trans_dict: dict) -> list:
 def rm_idx(seq, idx):
     return [i for i in seq if i != idx]
 
-def rm_pads(srcs, tgts, preds, pad_idx): 
-    srcs = [rm_idx(src, pad_idx) for src in srcs] 
-    tgts = [rm_idx(tgt, pad_idx) for tgt in tgts] 
-    preds = [rm_idx(pred, pad_idx) for pred in preds] 
-    # remove end symbol
+def post_process(srcs, tgts, preds, config): 
+    # remove pad idx
+    srcs = [rm_idx(src, config.pad_idx) for src in srcs] 
+    tgts = [rm_idx(tgt, config.pad_idx) for tgt in tgts] 
+    preds = [rm_idx(pred, config.pad_idx) for pred in preds] 
+    if config.method in ['end2end', 'tagging']:
+        # remove end idx
+        end_idxes = [p.index(config.end_idx)+1 if config.end_idx in p else len(p) for p in preds]
+        preds = [p[:idx] for idx, p in zip(end_idxes, preds)]
     return srcs, tgts, preds
 
 def save_check_point(step, epoch, model_state_dict, opt_state_dict, path):
@@ -248,19 +186,6 @@ def rand_sample(srcs, tars, preds, src_dict, tar_dict, pred_dict):
     pred = translate(pred, pred_dict)
     return ' '.join(src), ' '.join(tar), ' '.join(pred)
 
-# # for bubble sort
-# def find_next_step_in_bubble_sort(seq): 
-#     n = len(seq) 
-#     for j in range(0, n-1):
-#         if seq[j] > seq[j+1]:
-#             return j
-#     return -1
-# # for bubble sort
-# def bubble_sort_step(seq, j): 
-#     # perform one bubble sort step
-#     seq[j], seq[j+1] = seq[j+1], seq[j] 
-#     return seq
-
 # for swap sort
 def find_src_index_to_swap(x: list, y: list) -> int:
     if x == y:
@@ -275,30 +200,93 @@ def find_tgt_index_to_swap(x: list, src_idx: int) -> int:
     else:
         return np.argmin(x[src_idx:]) + src_idx
 
-def convert_to_int(seq:list) -> list:
+def convert_to_int(seq: list) -> list:
     return [int(str_number) for str_number in seq]
 
-def convert_to_str(seq:list) -> str:
+def convert_to_str(seq: list) -> str:
     return [str(int_number) for int_number in seq]
+
+def nss_sampler(ys: list) -> list:
+    xs = []
+    for y in ys:
+        idx = np.arange(len(y))
+        np.random.shuffle(idx)
+        x = np.array(y)[idx].tolist()
+        xs.append(x)
+    return [(x, y) for x, y in zip(xs, ys)]
+
+# class for data generation of the Arithmetic Equation Simplification (AES) problem 
+class ArithmeticEquationSimplification(): 
+    """docstring for ArithmeticEquationSimplification"""
+    def __init__(self, config):
+        super().__init__()
+        self.operators = config.operators
+        self.pos_digits = np.arange(2, config.num_size+2).tolist()
+        self.neg_digits = np.arange(-config.num_size, -1).tolist()
+        self.digits = self.pos_digits + self.neg_digits
+        self.base_dict = self.gen_base_dict()
+
+    def gen_base_dict(self):
+        base_dict = {str(i):[] for i in self.pos_digits}
+        for a in self.digits:
+            for o in self.operators:
+                for b in self.pos_digits:
+                    try:
+                        e = [str(a), o, str(b)]
+                        v = str(eval(''.join(e)))
+                        e[0] = e[0].replace('-', '- ')
+                        e = ' '.join(list(e))
+                        if v in base_dict: 
+                            base_dict[v].append('( {} )'.format(e))
+                    except:
+                        pass
+        return base_dict
+
+    def replace_numbers(self, ys):
+        ys = copy.deepcopy(ys)
+        xs = []
+        for y in ys: 
+            num_idx = [i for i, token in enumerate(y) if token.isdigit()]
+            num_to_replace = np.random.choice(range(len(num_idx)))
+            idx_to_replace = np.random.choice(num_idx, num_to_replace, False)
+            for i in idx_to_replace:
+                y[i] = np.random.choice(self.base_dict[y[i]])
+            xs.append(' '.join(y).split())
+        return xs
+
+def aes_sampler(ys: list, aes) -> list: 
+    xs = aes.replace_numbers(ys.copy())
+    return [(x, y) for x, y in zip(xs, ys)]
+
+def inverse_sampler(data, data_src, aes=None):
+    if data_src == 'nss':
+        return nss_sampler(data)
+    elif data_src == 'aes':
+        return aes_sampler(data, aes)
+    else:
+        return data
+
+def get_nss_sample_p(seq_len, min_p=0.01, max_p=1.0):
+    decay_rate = 0.5/seq_len
+    ps = [min_p + (max_p-min_p)*np.exp(-decay_rate*i) for i in range(seq_len)]
+    return ps/sum(ps)
 
 def end2end_online_generator(data_src: str, data) -> list:
     # online training data generation
-    # for Arithmetic Operators Insertion (AOI)
-    if data_src == 'aoi':
-        # make a copy
-        y = data.copy() # list
-        x = y.copy()
-        # get operator indexes
-        operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
-        # decide how many operators to remove
-        num_idxes = np.random.choice(range(len(operator_idxes)+1))
-        if num_idxes == 0:
-            return x, y
-        else:
-            # decide operators to remove
-            idxes_to_remove = operator_idxes[:num_idxes]
-            x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
-            return x, y
+    # for Arithmetic Equation Simplification (AES) 
+    if data_src == 'aes': 
+        x, y = data
+        xs = [x.copy()]
+        num_left = len([i for i in x if i == '('])
+        for i in range(num_left):
+            left_idx = x.index('(') 
+            right_idx = x.index(')') 
+            v = y[left_idx] 
+            x = x[:left_idx] + [v] + x[right_idx+1:]
+            xs.append(x)
+        index = np.random.choice(range(len(xs)))
+        x = xs[index]
+        return x, y
     # for Number Sequence Sorting (NSS)
     elif data_src == 'nss':
         # for swap sort
@@ -317,11 +305,8 @@ def end2end_online_generator(data_src: str, data) -> list:
         x = convert_to_str(xs[index])
         y = convert_to_str(y)
         return x, y
-
-def recursion_online_generator(data_src: str, data: list) -> list:
-    # online training data generation
     # for Arithmetic Operators Insertion (AOI)
-    if data_src == 'aoi':
+    elif data_src == 'aoi':
         # make a copy
         y = data.copy() # list
         x = y.copy()
@@ -330,15 +315,33 @@ def recursion_online_generator(data_src: str, data: list) -> list:
         # decide how many operators to remove
         num_idxes = np.random.choice(range(len(operator_idxes)+1))
         if num_idxes == 0:
-            return x, ['<completion>', '<none>', '<none>']
+            return x, y
         else:
             # decide operators to remove
             idxes_to_remove = operator_idxes[:num_idxes]
-            # generat label
-            y = ['<insertion>', str(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
-            # generate sample
             x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
             return x, y
+
+def recursion_online_generator(data_src: str, data: list) -> list:
+    # online training data generation
+    # for Arithmetic Equation Simplification (AES) 
+    if data_src == 'aes': 
+        x, y = data
+        xs = [x.copy()]
+        ys_ = []
+        num_left = len([i for i in x if i == '('])
+        for i in range(num_left):
+            left_idx = x.index('(') 
+            right_idx = x.index(')') 
+            v = y[left_idx] 
+            ys_.append(['<pos_{}>'.format(left_idx), '<pos_{}>'.format(right_idx), v])
+            x = x[:left_idx] + [v] + x[right_idx+1:]
+            xs.append(x)
+        ys_.append(['<done>']*3)
+        index = np.random.choice(range(len(xs)))
+        x = xs[index]
+        y_ = ys_[index]
+        return x, y_
     # for Number Sequence Sorting (NSS)
     elif data_src == 'nss':
         # for swap sort
@@ -358,73 +361,180 @@ def recursion_online_generator(data_src: str, data: list) -> list:
         index = np.random.choice(range(len(xs)))
         x = convert_to_str(xs[index])
         y_ = convert_to_str(ys_[index])
-
         return x, y_
+    # for Arithmetic Operators Insertion (AOI)
+    elif data_src == 'aoi':
+        # make a copy
+        y = data.copy() # list
+        x = y.copy()
+        # get operator indexes
+        operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
+        # decide how many operators to remove
+        num_idxes = np.random.choice(range(len(operator_idxes)+1))
+        if num_idxes == 0:
+            return x, ['<completion>', '<none>', '<none>']
+        else:
+            # decide operators to remove
+            idxes_to_remove = operator_idxes[:num_idxes]
+            # generat label
+            y = ['<insertion>', str(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
+            # generate sample
+            x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
+            return x, y
 
-def tagging_online_generator(y: list) -> list:
-    # make a copy
-    x = y.copy()
-    # get operator indexes
-    operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
-    # decide how many operators to remove
-    num_idxes = np.random.choice(range(len(operator_idxes)+1))
-    if num_idxes == 0:
-        return x, ['<keep>']*len(y)
-    else:
-        # decide operators to remove
-        idxes_to_remove = operator_idxes[:num_idxes]
-        x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
-        # generate tagging label
-        x_ = x.copy()
+def recursion_offline_generator(data_src: str, data) -> list: 
+    # for Arithmetic Equation Simplification (AES) 
+    if data_src == 'aes':
+        x, y = data
+        num_left = len([i for i in x if i == '('])
+        if num_left == 0:
+            y_ = ['<done>']*3
+        else:
+            left_idx = x.index('(') 
+            right_idx = x.index(')') 
+            v = y[left_idx] 
+            y_ = ['<pos_{}>'.format(left_idx), '<pos_{}>'.format(right_idx), v]
+        return x, y_
+    # for Number Sequence Sorting (NSS)
+    elif data_src == 'nss': 
+        # for swap sort
+        x, y = data
+        x = convert_to_int(x)
+        y = convert_to_int(y)
+        if x == y:
+            y_ = [-1, -1]
+        else:
+            src_idx = find_src_index_to_swap(x, y) 
+            tgt_idx = find_tgt_index_to_swap(x, src_idx)
+            y_ = [src_idx, tgt_idx]
+        x = convert_to_str(x)
+        y_ = convert_to_str(y_)
+        return x, y_
+    # for Arithmetic Operators Insertion (AOI)
+    elif data_src == 'aoi': 
+        return data
+
+def tagging_online_generator(data_src: str, data) -> list:
+    # for Arithmetic Equation Simplification (AES) 
+    if data_src == 'aes': 
+        # pick an intermediate step
+        x, y = data
+        xs = [x.copy()]
+        num_left = len([i for i in x if i == '('])
+        for i in range(num_left):
+            left_idx = x.index('(') 
+            right_idx = x.index(')') 
+            v = y[left_idx] 
+            x = x[:left_idx] + [v] + x[right_idx+1:]
+            xs.append(x)
+        index = np.random.choice(range(len(xs)))
+        x = xs[index]
+        # convert to the tagging style
         y_ = []
+        x_ = x.copy()
         x_token = x_.pop(0)
-        for i in range(len(y)):
-            y_token = y[i]
-            if x_token == y_token: 
+        for i in range(len(y)): 
+            y_token = y[i] 
+            if x_token == y_token:
                 y_.append('<keep>')
                 if len(x_) == 0:
                     break
                 x_token = x_.pop(0)
             else:
                 y_.append('<add_{}>'.format(y_token))
-
+                while True:
+                    y_.append('<delete>')
+                    if x_token == ')':
+                        if len(x_) != 0:
+                            x_token = x_.pop(0)
+                        break
+                    x_token = x_.pop(0)
         return x, y_
+    # for Number Sequence Sorting (NSS)
+    elif data_src == 'nss':
+        pass
+    # for Arithmetic Operators Insertion (AOI)
+    elif data_src == 'aoi':
+        # make a copy
+        y = data
+        x = data.copy()
+        # get operator indexes
+        operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
+        # decide how many operators to remove
+        num_idxes = np.random.choice(range(len(operator_idxes)+1))
+        if num_idxes == 0:
+            return x, ['<keep>']*len(y)
+        else:
+            # decide operators to remove
+            idxes_to_remove = operator_idxes[:num_idxes]
+            x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
+            # generate tagging label
+            x_ = x.copy()
+            y_ = []
+            x_token = x_.pop(0)
+            for i in range(len(y)):
+                y_token = y[i]
+                if x_token == y_token: 
+                    y_.append('<keep>')
+                    if len(x_) == 0:
+                        break
+                    x_token = x_.pop(0)
+                else:
+                    y_.append('<add_{}>'.format(y_token))
+            return x, y_
 
-# def subsequent_mask(size):
-#     """Mask out subsequent positions."""
-#     attn_shape = (size, size)
-#     mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
-#     mask =  torch.from_numpy(mask) == 0
-#     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-#     return mask
+def tagging_offline_generator(data_src: str, data) -> list:
+    # for Arithmetic Equation Simplification (AES) 
+    if data_src == 'aes': 
+        x, y = data
+        y_ = []
+        x_ = x.copy()
+        x_token = x_.pop(0)
+        for i in range(len(y)): 
+            y_token = y[i] 
+            if x_token == y_token:
+                y_.append('<keep>')
+                if len(x_) == 0:
+                    break
+                x_token = x_.pop(0)
+            else:
+                y_.append('<add_{}>'.format(y_token))
+                while True:
+                    y_.append('<delete>')
+                    if x_token == ')':
+                        if len(x_) != 0:
+                            x_token = x_.pop(0)
+                        break
+                    x_token = x_.pop(0)
+        return x, y_
+    # for Number Sequence Sorting (NSS)
+    elif data_src == 'nss':
+        pass
+    # for Arithmetic Operators Insertion (AOI)
+    elif data_src == 'aoi':
+        pass
 
+def data_generator(data, config):
+    # for end2end
+    if config.method == 'end2end':
+        if config.data_mode == 'online': 
+            xs, ys = zip(*[end2end_online_generator(config.data_src, d) for  d in data])
+        elif config.data_mode == 'offline': 
+            xs, ys = zip(*data)
+    # for recurrent inference
+    elif config.method == 'recursion': 
+        if config.data_mode == 'online':
+            xs, ys = zip(*[recursion_online_generator(config.data_src, d) for d in data])
+        elif config.data_mode == 'offline':
+            xs, ys = zip(*[recursion_offline_generator(config.data_src, d) for d in data])
+    # for tagging
+    elif config.method == 'tagging':
+        if config.data_mode == 'online':
+            xs, ys = zip(*[tagging_online_generator(config.data_src, d) for d in data])
+        elif config.data_mode == 'offline':
+            xs, ys = zip(*[tagging_offline_generator(config.data_src, d) for d in data])
 
-# def make_std_mask(tgt, pad):
-#     """Create a mask to hide padding and future words."""
-#     tgt_mask = (tgt != pad).unsqueeze(-2)
-#     tgt_mask = tgt_mask & torch.autograd.Variable(subsequent_mask(tgt.size(-1)).type_as(tgt_mask.data))
-#     tgt_mask = tgt_mask.float().masked_fill(tgt_mask == 0, float('-inf')).masked_fill(tgt_mask == 1, float(0.0))
-#     return tgt_mask
-
-
-# def prepare_masks(sz, config):
-#     """Create source and target sequence mask for the transformer model. Called after padding """
-#     mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-#     mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-#     return mask
-
-# def generate_source_key_padding_mask(src_lens, max_len):
-#     # src_lens: batch_size
-#     # batch_size, seq_len
-#     idxes = torch.arange(end=max_len, 
-#         dtype=torch.float, 
-#         device=src_lens.device).repeat(src_lens.size(0), 1)
-#     # batch_size, seq_len 
-#     src_lens = src_lens.repeat(idxes.size(1), 1).transpose(0, 1)
-#     # batch_size, seq_len
-#     mask = idxes < src_lens
-    
-#     return ~mask
+    return xs, ys
 
 def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config, train=True): 
     # vocab to index
@@ -460,6 +570,9 @@ def is_int(v):
     except:
         return False
 
+def parse_pos(pos):
+    return int(''.join([i for i in pos if i.isdigit()]))
+
 def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config): 
     # detach from devices
     xs = xs.cpu().detach().numpy() 
@@ -485,10 +598,10 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
         # xs, x_lens = padding(xs)
     # inference function for Number Sequence Sorting (NSS)
     elif config.data_src == 'nss': 
+        # for swap sort
         xs = np.array(xs)
         ys_ = np.array(ys_)
         is_numeric = np.vectorize(is_int, otypes=[bool])
-        # for swap sort
         mask = np.logical_and(ys_ != '-1', is_numeric(ys_)).all(axis=-1)
         if not mask.any():
             done = True
@@ -500,11 +613,28 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
             xs[mask, src_idxes], xs[mask, tgt_idxes] = xs[mask, tgt_idxes], xs[mask, src_idxes] 
         xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
         xs, x_lens = padding(xs)
+    # inference function for Arithmetic Equation Simplification (AES)
+    elif config.data_src == 'aes': 
+        mask = (np.array(ys_) != '<done>').all(axis=-1)
+        if not mask.any():
+            done = True
+        else:
+            done = False
+            # for loop inference
+            for i in range(len(xs)):
+                x, y_ = xs[i], ys_[i]
+                if y_[0].startswith('<pos_') and y_[1].startswith('<pos_') and y_[2].isdigit():
+                    left_idx = parse_pos(y_[0])
+                    right_idx = parse_pos(y_[1])
+                    xs[i] = x[:left_idx] + [y_[2]] + x[right_idx+1:]
+        xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
+        xs, x_lens = padding(xs)
     return xs.to(config.device), torch.Tensor(x_lens).to(config.device), done
 
 def recursive_infer(xs, x_lens, model, max_infer_step, 
     src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done=False):
     # recursive inference in valudation and testing
+    # if config.data_src in ['aoi']:
     if max_infer_step == 0:
         return xs, x_lens, False
     else:
@@ -517,22 +647,22 @@ def recursive_infer(xs, x_lens, model, max_infer_step,
             xs, x_lens, done = one_step_infer(xs, ys_, 
                 src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config)
             return xs, x_lens, done
-
-# def recursive_infer_transformer(xs, x_lens, model, src_mask, tgt_mask, 
-#     max_infer_step, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done=False):
-#     # recursive inference for transformer
-#     if max_infer_step == 0:
-#         return xs, x_lens, False
-#     else:
-#         xs, x_lens, done = recursive_infer_transformer(xs, x_lens, model, src_mask, tgt_mask, 
-#             max_infer_step-1, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done)
-#         if done:
-#             return xs, x_lens, done
-#         else:
-#             ys_ = model(xs, x_lens, src_mask, tgt_mask)
-#             xs, x_lens, done = one_step_infer(xs, ys_, 
-#                 src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, False)
-#             return xs, x_lens, done
+    # elif config.data_src in ['nss']:
+    #     res = torch.ones((xs.size(0), max_infer_step), device=config.device)
+    #     for i in range(max_infer_step):
+    #         ys_ = model(xs, x_lens)
+    #         ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() 
+    #         ys_ = [translate(y_, tgt_idx2vocab_dict)[0] for y_ in ys_]
+    #         ys_ = [ int(y_) if y_.isdigit() else np.random.randint(xs.size(1)) for y_ in ys_]
+    #         ys_ = torch.Tensor(ys_).reshape(xs.size(0), -1).long().to(config.device)
+    #         ys_ = ys_.expand(xs.shape)
+    #         idx = torch.arange(end=xs.size(1), device=config.device)
+    #         idx = idx.unsqueeze(0).expand(xs.shape)
+    #         mask = idx == ys_
+    #         res[:, i] = xs[mask]
+    #         xs = xs[~mask].reshape(xs.size(0), -1)
+    #         x_lens -= 1
+    #     return res, None, None
 
 def tagging_execution(x, y_):
     p = []
@@ -540,19 +670,22 @@ def tagging_execution(x, y_):
     x_token = x_.pop(0)
     for y_token in y_:
         if y_token == '<keep>':
-            # keep symbol
+            # keep token
             p.append(x_token)
             if len(x_) == 0:
                 break
             x_token = x_.pop(0)
+        elif y_token == '<delete>':
+            # delete token
+            pass
         elif 'add' in y_token:
-            # add symbol
+            # add token
             y_token = y_token.split('<add_')[1].split('>')[0]
             p.append(y_token)
         else:
             # end symbol or pad symbol
-            pass
-
+            break
+    # return prediction
     return p
 
 def tagging_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict):

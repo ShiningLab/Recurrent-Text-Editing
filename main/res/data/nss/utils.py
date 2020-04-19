@@ -29,33 +29,6 @@ def convert_to_int(seq:list) -> list:
 def convert_to_str(seq:list) -> str:
     return [str(int_number) for int_number in seq]
 
-# for bubble sort
-def find_next_step_in_bubble_sort(seq): 
-    n = len(seq) 
-    for j in range(0, n-1):
-        if seq[j] > seq[j+1]:
-            return j
-    return -1
-
-def bubble_sort_step(seq, j): 
-    # perform one bubble sort step
-    seq[j], seq[j+1] = seq[j+1], seq[j] 
-    return seq
-
-# for swap sort
-def find_src_index_to_swap(x: list, y: list) -> int:
-    if x == y:
-        return -1
-    else:
-        idx_to_swap = [i for i in range(len(x)) if x[i] != y[i]][0]
-        return idx_to_swap
-    
-def find_tgt_index_to_swap(x: list, src_idx: int) -> int:
-    if src_idx == -1:
-        return -1
-    else:
-        return np.argmin(x[src_idx:]) + src_idx
-
 def gen_recursion_pair(x: str, y: str) -> (list, list):
     # white space tokenization
     x = convert_to_int(x.split())
@@ -65,13 +38,21 @@ def gen_recursion_pair(x: str, y: str) -> (list, list):
     ys_ = []
     # process swap sort
     while True:
-        src_idx = find_src_index_to_swap(x, y)
-        tgt_idx = find_tgt_index_to_swap(x, src_idx)
-        ys_.append([src_idx, tgt_idx])
-        if src_idx == tgt_idx == -1:
+        min_idx = np.argmin(x)
+        ys_.append([min_idx])
+        del x[min_idx]
+        if len(x) == 0:
             break
-        x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
-        xs.append(x.copy())
-    
+        xs.append(x.copy())    
     index = np.random.choice(range(len(xs)))
+
     return convert_to_str(xs[index]), convert_to_str(ys_[index]), convert_to_str(y)
+
+def nss_generator(ys: list) -> list:
+    xs = []
+    for y in ys:
+        idx = np.arange(len(y))
+        np.random.shuffle(idx)
+        x = np.array(y)[idx].tolist()
+        xs.append(x)
+    return [(x, y) for x, y in zip(xs, ys)]

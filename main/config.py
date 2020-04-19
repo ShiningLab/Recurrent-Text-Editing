@@ -10,14 +10,14 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.data_src = 'nss' # aoi, nss
+        self.data_src = 'aes' # aes, nss, aoi
         self.method = 'recursion' # end2end, recursion, tagging
-        self.data_mode = 'online' # online, offline 
+        self.data_mode = 'offline' # online, offline 
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
         # gru_ptr, lstm_ptr, bi_gru_ptr, bi_lstm_ptr
-        self.model_name = 'transformer'
+        self.model_name = 'bi_lstm_rnn_att'
         self.load_check_point = False
         self.num_size = 100 # numbers involved
         self.seq_len = 5 # input sequence length
@@ -55,12 +55,13 @@ class Config():
         self.pad_symbol = '<pad>'
         self.start_symbol = '<s>'
         self.end_symbol = '</s>'
+        self.operators = ['+', '-', '*', '/']
         # data loader
         self.batch_size = 256
         self.shuffle = True
         self.drop_last = True
         # val
-        self.val_win_size = 512
+        self.val_win_size = 128
         # model
         self.learning_rate = 1e-4
         if 'ptr' in self.model_name:
@@ -102,6 +103,9 @@ class RecursionConfig(Config):
         elif self.data_src == 'nss':
             self.max_infer_step = self.seq_len
             self.tgt_seq_len = 2 # src_idx_to_swap, tgt_idx_to_swap
+        elif self.data_src == 'aes':
+            self.max_infer_step = self.seq_len
+            self.tgt_seq_len = 3 # start_idx, end_idx, target value
 
 class TaggingConfig(Config):
     """docstring for TaggingConfig"""

@@ -14,32 +14,40 @@ from tqdm import tqdm
 from utils import *
 
 
-def generate_end2end(num_size, seq_len, data_size): 
-    # generate random number sequence sa sample
-    # with its sorted result as label
-    xs, ys = [], []
-    # to filter out duplicates
-    num_seq_set = set()
-    for i in tqdm(range(data_size)): 
-        while True: 
-            # get a random number sequence
-            x = np.random.randint(num_size, size=[seq_len])
-            # check duplicates
-            y = np.sort(x)
-            if str(y) in num_seq_set: 
-                continue
-            else:
-                num_seq_set.add(str(y))
+# class for data generation of the Number Sequence Sorting (NSS) problem 
+class NumberSequenceSorting(): 
+    def __init__(self, seq_len, data_size, num_size):
+        super().__init__()
+        self.seq_len = seq_len
+        self.data_size = data_size
+        self.num_size = num_size 
+        
+    def generate_end2end(self):
+        # generate random number sequence sa sample
+        # with its sorted result as label
+        xs, ys = [], []
+        # to filter out duplicates
+        num_seq_set = set()
+        for i in tqdm(range(self.data_size)): 
+            while True: 
+                # get a random number sequence
+                x = np.random.randint(self.num_size, size=[self.seq_len])
+                # check duplicates
                 y = np.sort(x)
-                # convert a list of int to string
-                x = convert_to_str(x)
-                y = convert_to_str(y)
-                # append to dataset
-                xs.append(x)
-                ys.append(y)
-                break
-                    
-    return xs, ys
+                if str(y) in num_seq_set: 
+                    continue
+                else:
+                    num_seq_set.add(str(y))
+                    y = np.sort(x)
+                    # convert a list of int to string
+                    x = convert_to_str(x)
+                    y = convert_to_str(y)
+                    # append to dataset
+                    xs.append(x)
+                    ys.append(y)
+                    break
+
+        return xs, ys
 
 def train_test_split(xs, ys): 
     # train val test split
@@ -72,7 +80,6 @@ def save_dataset(trainset, valset, testset, args):
     if not os.path.exists(outdir): 
         os.makedirs(outdir)
 
-    save_txt(os.path.join(outdir, 'train_x.txt'), trainset[:, 0])
     save_txt(os.path.join(outdir, 'train_y.txt'), trainset[:, 1])
     save_txt(os.path.join(outdir, 'val_x.txt'), valset[:, 0])
     save_txt(os.path.join(outdir, 'val_y.txt'), valset[:, 1])
@@ -98,10 +105,8 @@ def main():
         help='define the total data size')
     args = parser.parse_args()
     # data generation 
-    xs, ys = generate_end2end(
-        num_size=args.num_size, 
-        seq_len=args.seq_len, 
-        data_size=args.data_size)
+    generator = NumberSequenceSorting(args.seq_len, args.data_size, args.num_size)
+    xs, ys = generator.generate_end2end()
     trainset, valset, testset = train_test_split(xs, ys)
     save_dataset(trainset, valset, testset, args)
 

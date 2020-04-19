@@ -44,60 +44,51 @@ class RecursionDataPreprocess(object):
 
     def data_preprocess(self):
         # load raw dataset
-        raw_train_xs = load_txt(os.path.join(self.indir, 'train_x.txt'))
         raw_train_ys = load_txt(os.path.join(self.indir, 'train_y.txt'))
         raw_val_xs = load_txt(os.path.join(self.indir, 'val_x.txt'))
         raw_val_ys = load_txt(os.path.join(self.indir, 'val_y.txt'))
         raw_test_xs = load_txt(os.path.join(self.indir, 'test_x.txt'))
         raw_test_ys = load_txt(os.path.join(self.indir, 'test_y.txt'))
         # check data size
-        print('train sample size', len(raw_train_xs))
-        print('train label size', len(raw_train_ys))
-        print('val sample size', len(raw_val_xs))
-        print('val label size', len(raw_val_ys))
-        print('test sample size', len(raw_test_xs))
-        print('test label size', len(raw_test_ys))
+        print('train size', len(raw_train_ys))
+        print('val size', len(raw_val_ys))
+        print('test size', len(raw_test_ys))
         # train
-        # preprocess samples and lables for recursion method
-        train_xs, train_ys_, train_ys = zip(*[gen_recursion_pair(x, y) 
-            for x, y in zip(raw_train_xs, raw_train_ys)])
-        # source vocabulary frequency distribution
+        # white space tokenization
+        train_ys = white_space_tokenizer(raw_train_ys)
+        # vocabulary frequency distribution
         counter = Counter()
-        for x in train_xs: 
-            counter.update(x)
-        src_vocab_list = sorted(counter.keys())
+        for y in train_ys:
+            counter.update(y)
+        vocab_list = sorted(counter.keys())
         # soruce vocabulary dictionary
         src_vocab2idx_dict = dict()
         src_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
         i = len(src_vocab2idx_dict)
-        for token in src_vocab_list:
+        for token in vocab_list:
             src_vocab2idx_dict[token] = i
             i += 1
-        # target vocabulary frequency distribution
-        counter = Counter()
-        for y_ in train_ys_:
-            counter.update(y_)
-        tgt_vocab_list = sorted(counter.keys())
         # target vocabulary dictionary
+        train_ys_lens = [len(y) for y in train_ys]
+        train_max_ys_len = max(train_ys_lens)
+
         tgt_vocab2idx_dict = dict()
         tgt_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
         tgt_vocab2idx_dict['<s>'] = 1 # to mark the start of a sequence
         i = len(tgt_vocab2idx_dict)
-        for token in tgt_vocab_list:
+        for token in np.arange(-1, train_max_ys_len).astype(str):
             tgt_vocab2idx_dict[token] = i
             i += 1
         # val
         # white space tokenization
         val_xs = white_space_tokenizer(raw_val_xs)
         val_ys = white_space_tokenizer(raw_val_ys)
-        # white space tokenization
         # test
+        # white space tokenization
         test_xs = white_space_tokenizer(raw_test_xs)
         test_ys = white_space_tokenizer(raw_test_ys)
         # combine data sets to a dict
         train_dict = {}
-        train_dict['xs'] = train_xs
-        train_dict['ys_'] = train_ys_
         train_dict['ys'] = train_ys
 
         val_dict = {}

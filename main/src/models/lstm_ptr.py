@@ -27,9 +27,9 @@ class End2EndModelGraph(nn.Module):
             embedding_dim=self.config.embedding_size, 
             padding_idx=self.config.pad_idx)
 
-    def forward(self, xs, x_lens, argsort_xs, teacher_forcing_ratio=0.5):
+    def forward(self, xs, x_lens, ys, teacher_forcing_ratio=0.5):
         # xs: batch_size, max_len
-        # argsoft_xs: batch_size, max_len
+        # ys: batch_size, max_len
         batch_size = xs.shape[0]
         # for ptr net, x_len = y_len = max_len
         max_len = xs.shape[1]
@@ -58,7 +58,7 @@ class End2EndModelGraph(nn.Module):
             # batch_size, max_seq_len
             decoder_outputs[i] = attn_w.log()
             # batch_size, 1
-            ptr_idxes = argsort_xs[:, i, None] if random.random() < teacher_forcing_ratio \
+            ptr_idxes = ys[:, i, None] if random.random() < teacher_forcing_ratio \
             else attn_w.max(-1, keepdim=True)[1]
             # batch_size, 1, en_hidden_size
             ptr_idxes = ptr_idxes.unsqueeze(-1).expand(-1, 1, self.config.en_hidden_size)

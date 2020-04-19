@@ -6,6 +6,7 @@ __email__ = 'mrshininnnnn@gmail.com'
 
 # public
 import torch
+torch.manual_seed(0)
 from torch.utils import data as torch_data
 
 import os
@@ -31,12 +32,15 @@ class TextEditor(object):
         self.config = config
         self.step, self.epoch = 0, 0 # training step and epoch
         self.finished = False # training done flag
-        # equation accuracy
-        self.val_metric_list =  [float('-inf')]*self.config.val_win_size
         self.setup_gpu()
         self.load_vocab()
         self.load_data()
         self.setup_model()
+        # data src specific
+        if self.config.data_src == 'aes':
+            self.aes = ArithmeticEquationSimplification(self.config)
+        else:
+            self.aes = None
 
     def setup_gpu(self): 
         # verify devices which can be either cpu or gpu
@@ -58,10 +62,9 @@ class TextEditor(object):
     def train_recursion_collate_fn(self, data):
         # a customized collate function used in the data loader 
         data.sort(key=len, reverse=True)
-        if self.config.data_mode == 'online':
-            xs, ys = zip(*[recursion_online_generator(self.config.data_src, d) for d in data])
-        else:
-            xs, ys = zip(*data)
+        # sampling for many2one task such as nss and aes
+        data = inverse_sampler(data, self.config.data_src, self.aes)
+        xs, ys = data_generator(data, self.config)
         # convert to index, add end symbol, and save as tensor
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config)
@@ -80,7 +83,10 @@ class TextEditor(object):
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config)
         # TODO: why padding leads to an incorrect prediction
-        xs, x_lens = padding(xs, self.config.seq_len*2)
+        if self.config.data_mode == 'online' and self.config.data_src == 'aoi': 
+            xs, x_lens = padding(xs, self.config.seq_len*2)
+        else:
+            xs, x_lens = padding(xs)
         # xs, x_lens = padding(xs)
         ys, _ = padding(ys)
 
@@ -92,13 +98,10 @@ class TextEditor(object):
         # read data dictionary from json file
         self.data_dict = load_json(self.config.DATA_PATH)
         # train data loader
-        if self.config.data_mode == 'online':
-            self.train_dataset = OnlineRecursionDataset(
-                data_dict=self.data_dict['train'], 
-                data_src=self.config.data_src)
+        if self.config.data_mode == 'online' or self.config.data_src in ['nss', 'aes']: 
+            self.train_dataset = OnlineDataset(data_dict=self.data_dict['train'])
         else:
-            self.train_dataset = OfflineRecursionDataset(
-                data_dict=self.data_dict['train'])
+            self.train_dataset = OfflineDataset(data_dict=self.data_dict['train'])
         self.trainset_generator = torch_data.DataLoader(
               self.train_dataset, 
               batch_size=self.config.batch_size, 
@@ -106,7 +109,7 @@ class TextEditor(object):
               shuffle=self.config.shuffle, 
               drop_last=self.config.drop_last)
         # valid data loader
-        self.val_dataset = OfflineEnd2EndDataset(self.data_dict['val'])
+        self.val_dataset = OfflineDataset(data_dict=self.data_dict['val'])
         self.valset_generator = torch_data.DataLoader(
             self.val_dataset, 
             batch_size=self.config.batch_size, 
@@ -114,7 +117,7 @@ class TextEditor(object):
             shuffle=False, 
             drop_last=False)
         # test data loader
-        self.test_dataset = OfflineEnd2EndDataset(self.data_dict['test'])
+        self.test_dataset = OfflineDataset(data_dict=self.data_dict['test'])
         self.testset_generator = torch_data.DataLoader(
               self.test_dataset, 
               batch_size=self.config.batch_size, 
@@ -158,10 +161,10 @@ class TextEditor(object):
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
             for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
-                # print(x_lens.cpu().detach().numpy()[0])
-                # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
-                # print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
-                # break
+            #     print(x_lens.cpu().detach().numpy()[0])
+            #     print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
+            #     print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+            #     break
             # break
                 ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
                 loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
@@ -181,7 +184,7 @@ class TextEditor(object):
             xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
             ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
             ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
-            xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
+            xs, ys, ys_ = post_process(xs, ys, ys_, self.config)
             # evaluation
             eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict, True)
             eva_msg = 'Train Epoch {} Total Step {} Loss:{:.4f} '.format(self.epoch, self.step, loss)
@@ -196,7 +199,7 @@ class TextEditor(object):
             # testing
             self.test()
             # early stopping on the basis of validation result
-            if self.pre_val_metric >= self.cur_val_metric >= 0. or self.finished:
+            if self.val_epoch >= self.config.val_win_size:
                 # update flag
                 self.finished = True
                 # save log
@@ -216,6 +219,7 @@ class TextEditor(object):
                 save_txt(self.config.RESULT_POINT.format('test'), test_result)
 
             self.epoch += 1
+            self.val_epoch += 1
 
     def validate(self):
         print('\nValidating...')
@@ -231,17 +235,15 @@ class TextEditor(object):
                 # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # print(translate(ys.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # break
-                ys_,  _, _ = recursive_infer(xs, x_lens, model, self.config.max_infer_step, 
-                    self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config)
-
+                ys_ = recursive_infer(xs, x_lens, model, self.config.max_infer_step, 
+                    self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config)[0]
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = ys_.cpu().detach().numpy() # batch_size, max_ys_seq_len
-                xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
+                xs, ys, ys_ = post_process(xs, ys, ys_, self.config)
                 all_xs += xs
                 all_ys += ys 
                 all_ys_ += ys_
-
         # evaluation
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.src_idx2vocab_dict)
         eva_msg = 'Val Epoch {} Total Step {} '.format(self.epoch, self.step)
@@ -253,13 +255,11 @@ class TextEditor(object):
             self.src_idx2vocab_dict, self.src_idx2vocab_dict, self.src_idx2vocab_dict)
         print(' src: {}\n tar: {}\n pred: {}'.format(src, tar, pred))
         # early stopping
-        if eva_matrix.key_metric >= self.val_key_metric:
+        if eva_matrix.key_metric > self.val_key_metric:
+            self.val_epoch = 0
             self.val_key_metric = eva_matrix.key_metric
             # save model
             save_check_point(self.step, self.epoch, self.model.state_dict, self.opt.state_dict, self.config.SAVE_POINT)
-        self.val_metric_list.append(eva_matrix.key_metric)
-        self.pre_val_metric = get_list_mean(self.val_metric_list[-self.config.val_win_size-1: -1])
-        self.cur_val_metric = get_list_mean(self.val_metric_list[-self.config.val_win_size:])
         # save test output
         self.val_src = [' '.join(translate(x, self.src_idx2vocab_dict)) for x in all_xs]
         self.val_tgt = [' '.join(translate(y, self.src_idx2vocab_dict)) for y in all_ys]
@@ -283,12 +283,12 @@ class TextEditor(object):
                 # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # print(translate(ys.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
                 # break
-                ys_, _, _ = recursive_infer(xs, x_lens, model, self.config.max_infer_step, 
-                    self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config)
+                ys_ = recursive_infer(xs, x_lens, model, self.config.max_infer_step, 
+                    self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict, self.config)[0]
                 xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
                 ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
                 ys_ = ys_.cpu().detach().numpy() # batch_size, max_ys_seq_len
-                xs, ys, ys_ = rm_pads(xs, ys, ys_, self.config.pad_idx)
+                xs, ys, ys_ = post_process(xs, ys, ys_, self.config)
                 all_xs += xs
                 all_ys += ys 
                 all_ys_ += ys_

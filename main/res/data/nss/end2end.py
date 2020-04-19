@@ -42,41 +42,31 @@ class End2EndDataPreprocess(object):
 
     def data_preprocess(self):
         # load raw dataset
-        raw_train_xs = load_txt(os.path.join(self.indir, 'train_x.txt'))
         raw_train_ys = load_txt(os.path.join(self.indir, 'train_y.txt'))
         raw_val_xs = load_txt(os.path.join(self.indir, 'val_x.txt'))
         raw_val_ys = load_txt(os.path.join(self.indir, 'val_y.txt'))
         raw_test_xs = load_txt(os.path.join(self.indir, 'test_x.txt'))
         raw_test_ys = load_txt(os.path.join(self.indir, 'test_y.txt'))
         # check data size
-        print('train sample size', len(raw_train_xs))
         print('train label size', len(raw_train_ys))
-        print('val sample size', len(raw_val_xs))
         print('val label size', len(raw_val_ys))
-        print('test sample size', len(raw_test_xs))
         print('test label size', len(raw_test_ys))
         # train
         # white space tokenization
-        train_xs = white_space_tokenizer(raw_train_xs)
         train_ys = white_space_tokenizer(raw_train_ys)
         # vocabulary frequency distribution
         counter = Counter()
-        for x in train_xs:
-            counter.update(x)
-        src_vocab_list = sorted(counter.keys())
+        for y in train_ys:
+            counter.update(y)
+        vocab_list = sorted(counter.keys())
         # soruce vocabulary dictionary
         src_vocab2idx_dict = dict()
         src_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
 
         i = len(src_vocab2idx_dict)
-        for token in src_vocab_list:
+        for token in vocab_list:
             src_vocab2idx_dict[token] = i
             i += 1
-        # target vocabulary frequency distribution
-        counter = Counter()
-        for y in train_ys:
-            counter.update(y)
-        tgt_vocab_list = sorted(counter.keys())
         # target vocabulary dictionary
         tgt_vocab2idx_dict = dict()
         tgt_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
@@ -84,7 +74,7 @@ class End2EndDataPreprocess(object):
         tgt_vocab2idx_dict['</s>'] = 2 # to mark the end of a sequence
 
         i = len(tgt_vocab2idx_dict)
-        for token in tgt_vocab_list:
+        for token in vocab_list:
             tgt_vocab2idx_dict[token] = i
             i += 1
         # val
@@ -97,7 +87,6 @@ class End2EndDataPreprocess(object):
         test_ys = white_space_tokenizer(raw_test_ys)
         # combine data sets to a dict
         train_dict = {}
-        train_dict['xs'] = train_xs
         train_dict['ys'] = train_ys
 
         val_dict = {}
