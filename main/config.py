@@ -11,7 +11,7 @@ class Config():
       def __init__(self): 
         # data source
         self.data_src = 'aes' # aes, nss, aoi
-        self.method = 'recursion' # end2end, recursion, tagging
+        self.method = 'tagging' # end2end, recursion, tagging
         self.data_mode = 'offline' # online, offline 
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 

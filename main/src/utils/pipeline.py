@@ -674,10 +674,14 @@ def tagging_execution(x, y_):
             p.append(x_token)
             if len(x_) == 0:
                 break
-            x_token = x_.pop(0)
+            else:
+                x_token = x_.pop(0)
         elif y_token == '<delete>':
             # delete token
-            pass
+            if len(x_) == 0:
+                break
+            else:
+                x_token = x_.pop(0)
         elif 'add' in y_token:
             # add token
             y_token = y_token.split('<add_')[1].split('>')[0]

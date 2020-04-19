@@ -164,62 +164,62 @@ class TextEditor(object):
             # training set data loader
             trainset_generator = tqdm(self.trainset_generator)
             for i, (xs, x_lens, ys) in enumerate(trainset_generator): 
-            #     print(x_lens.cpu().detach().numpy()[0])
-            #     print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
-            #     print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
-            #     break
-            # break
-                ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
-            #     break
-            # break
-                loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
-                # update step
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.clipping_threshold)
-                self.opt.step()
-                self.opt.zero_grad()
-                self.step += 1
-            # check progress
-            loss = loss.item()
-            xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
-            ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
-            ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
-            xs, ys, ys_ = post_process(xs, ys, ys_, self.config)
-            # evaluation
-            eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict, True)
-            eva_msg = 'Train Epoch {} Total Step {} Loss:{:.4f} '.format(self.epoch, self.step, loss)
-            eva_msg += eva_matrix.eva_msg
-            print(eva_msg)
-            # random sample to show
-            src, tar, pred = rand_sample(xs, ys, ys_, 
-                self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
-            print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
-            # val
-            self.validate()
-            # test
-            self.test()
-            # early stopping on the basis of validation result
-            if self.val_epoch > self.config.val_win_size:
-                # update flag
-                self.finished = True
-                # save log
-                end_time = datetime.now()
-                self.val_log.append('\nEnd Time: {}'.format(end_time))
-                self.val_log.append('\nTotal Time: {}'.format(end_time-self.start_time))
-                save_txt(self.config.LOG_POINT.format('val'), self.val_log)
-                self.test_log += self.val_log[-2:]
-                save_txt(self.config.LOG_POINT.format('test'), self.test_log)
-                # save val result
-                val_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
-                    x, y, y_) for x, y, y_ in zip(self.val_src, self.val_tgt, self.val_pred)]
-                save_txt(self.config.RESULT_POINT.format('val'), val_result)
-                # save test result
-                test_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
-                    x, y, y_) for x, y, y_ in zip(self.test_src, self.test_tgt, self.test_pred)]
-                save_txt(self.config.RESULT_POINT.format('test'), test_result)
+                print(x_lens.cpu().detach().numpy()[0])
+                print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
+                print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+                break
+            break
+            #     ys_ = self.model(xs, x_lens, ys, self.config.teacher_forcing_ratio)
+            # #     break
+            # # break
+            #     loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
+            #     # update step
+            #     loss.backward()
+            #     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.clipping_threshold)
+            #     self.opt.step()
+            #     self.opt.zero_grad()
+            #     self.step += 1
+            # # check progress
+            # loss = loss.item()
+            # xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
+            # ys = ys.cpu().detach().numpy() # batch_size, max_ys_seq_len
+            # ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() # batch_size, max_ys_seq_len
+            # xs, ys, ys_ = post_process(xs, ys, ys_, self.config)
+            # # evaluation
+            # eva_matrix = Evaluate(self.config, ys, ys_, self.tgt_idx2vocab_dict, True)
+            # eva_msg = 'Train Epoch {} Total Step {} Loss:{:.4f} '.format(self.epoch, self.step, loss)
+            # eva_msg += eva_matrix.eva_msg
+            # print(eva_msg)
+            # # random sample to show
+            # src, tar, pred = rand_sample(xs, ys, ys_, 
+            #     self.src_idx2vocab_dict, self.tgt_idx2vocab_dict, self.tgt_idx2vocab_dict)
+            # print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
+            # # val
+            # self.validate()
+            # # test
+            # self.test()
+            # # early stopping on the basis of validation result
+            # if self.val_epoch > self.config.val_win_size:
+            #     # update flag
+            #     self.finished = True
+            #     # save log
+            #     end_time = datetime.now()
+            #     self.val_log.append('\nEnd Time: {}'.format(end_time))
+            #     self.val_log.append('\nTotal Time: {}'.format(end_time-self.start_time))
+            #     save_txt(self.config.LOG_POINT.format('val'), self.val_log)
+            #     self.test_log += self.val_log[-2:]
+            #     save_txt(self.config.LOG_POINT.format('test'), self.test_log)
+            #     # save val result
+            #     val_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
+            #         x, y, y_) for x, y, y_ in zip(self.val_src, self.val_tgt, self.val_pred)]
+            #     save_txt(self.config.RESULT_POINT.format('val'), val_result)
+            #     # save test result
+            #     test_result = ['Src: {}\nTgt: {}\nPred: {}\n\n'.format(
+            #         x, y, y_) for x, y, y_ in zip(self.test_src, self.test_tgt, self.test_pred)]
+            #     save_txt(self.config.RESULT_POINT.format('test'), test_result)
 
-            self.epoch += 1
-            self.val_epoch += 1
+            # self.epoch += 1
+            # self.val_epoch += 1
 
     def validate(self):
         print('\nValidating...')
