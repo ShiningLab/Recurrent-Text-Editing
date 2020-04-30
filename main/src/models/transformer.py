@@ -13,10 +13,10 @@ from .encoder import PositionalEncoding
 from ..utils import pipeline
 
 
-class End2EndModelGraph(nn.Module):
+class E2EModelGraph(nn.Module):
 
     def __init__(self, config):
-        super(End2EndModelGraph, self).__init__()
+        super(E2EModelGraph, self).__init__()
         self.config = config
         # embedding layers
         self.src_embedding_layer = nn.Embedding(config.src_vocab_size, config.embedding_size)
@@ -34,11 +34,13 @@ class End2EndModelGraph(nn.Module):
         # encoder hidden dim = decoder hidden dim
         self.generator = nn.Linear(config.en_hidden_size, config.tgt_vocab_size)  
 
-    def forward(self, xs, x_lens, ys, teacher_forcing_ratio=None):
+    def forward(self, xs, x_lens, ys, max_ys_seq_len=None, teacher_forcing_ratio=0.5):
         # xs: batch_size, src_seq_len
         # x_lens: batch_size
         # ys: batch_size, max_ys_seq_len
         # batch_size, src_seq_len
+        if max_ys_seq_len == None:
+            max_ys_seq_len = ys.size(1)
         src_key_padding_mask = (xs == self.config.pad_idx)
         # src_seq_len, batch_size, emb_size
         xs = (self.src_embedding_layer(xs) * math.sqrt(self.config.embedding_size)).transpose(0, 1)
@@ -70,15 +72,15 @@ class End2EndModelGraph(nn.Module):
                 src_key_padding_mask=src_key_padding_mask)
             # batch_size, tgt_seq_len+1
             decoder_inputs = torch.empty(
-                (xs.size(1), ys.size(1)+1), 
+                (xs.size(1), max_ys_seq_len+1), 
                 dtype=torch.int64, device=self.config.device).fill_(self.config.start_idx)
             # max_ys_seq_len, batch_size, vocab_size
             decoder_outputs = torch.zeros(
-                ys.size(1), 
+                max_ys_seq_len, 
                 xs.size(1), 
                 self.config.tgt_vocab_size, 
                 device=self.config.device)
-            for i in range(ys.size(1)): 
+            for i in range(max_ys_seq_len): 
                 # cur_seq_len, batch_size, emb_size
                 decoder_input = (self.tgt_embedding_layer(decoder_inputs[:, :i+1]) * math.sqrt(self.config.embedding_size)).transpose(0, 1)
                 decoder_input = self.pos_encoder(decoder_input)
@@ -100,10 +102,10 @@ class End2EndModelGraph(nn.Module):
         return decoder_outputs.transpose(0, 1)
 
 
-class RecursionModelGraph(nn.Module):
+class RecModelGraph(nn.Module):
 
     def __init__(self, config):
-        super(RecursionModelGraph, self).__init__()
+        super(RecModelGraph, self).__init__()
         self.config = config
         # embedding layers
         self.src_embedding_layer = nn.Embedding(config.src_vocab_size, config.embedding_size)

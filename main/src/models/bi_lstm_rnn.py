@@ -15,19 +15,20 @@ from .encoder import BiLSTMRNNEncoder
 from .decoder import LSTMRNNDecoder
 
 
-class End2EndModelGraph(nn.Module): 
-    """docstring for End2EndModelGraph""" 
+class E2EModelGraph(nn.Module): 
+    """docstring for E2EModelGraph""" 
     def __init__(self, config): 
-        super(End2EndModelGraph, self).__init__() 
+        super(E2EModelGraph, self).__init__() 
         self.config = config
         self.encoder = BiLSTMRNNEncoder(config)
         self.decoder = LSTMRNNDecoder(config)
 
-    def forward(self, xs, x_lens, ys, teacher_forcing_ratio=0.5):
+    def forward(self, xs, x_lens, ys, max_ys_seq_len=None, teacher_forcing_ratio=0.5):
         # xs: batch_size, max_xs_seq_len
         # ys: batch_size, max_ys_seq_len
         batch_size = xs.shape[0]
-        max_ys_seq_len = ys.shape[1]
+        if max_ys_seq_len == None:
+            max_ys_seq_len = ys.shape[1]
         # encoder_output: batch_size, max_xs_seq_len, en_hidden_size
         # decoder_hidden: 1, batch_size, en_hidden_size
         encoder_output, decoder_hidden = self.encoder(xs, x_lens)
@@ -57,10 +58,10 @@ class End2EndModelGraph(nn.Module):
         return decoder_outputs.transpose(0, 1)
 
 
-class RecursionModelGraph(nn.Module): 
-    """docstring for RecursionModelGraph""" 
+class RecModelGraph(nn.Module): 
+    """docstring for RecModelGraph""" 
     def __init__(self, config): 
-        super(RecursionModelGraph, self).__init__() 
+        super(RecModelGraph, self).__init__() 
         self.config = config
         self.encoder = BiLSTMRNNEncoder(config)
         self.decoder = LSTMRNNDecoder(config)

@@ -92,7 +92,7 @@ class ArithmeticEquationSimplification():
         for y in ys:
             y = y.split()
             num_idx = [i for i, token in enumerate(y) if token.isdigit()]
-            num_to_replace = np.random.choice(range(len(num_idx)))
+            num_to_replace = np.random.choice(range(len(num_idx)+1))
             idx_to_replace = np.random.choice(num_idx, num_to_replace, False)
             for i in idx_to_replace:
                 y[i] = np.random.choice(self.base_dict[y[i]])

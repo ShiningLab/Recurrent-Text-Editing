@@ -10,16 +10,15 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.data_src = 'aes' # aes, nss, aoi
-        self.method = 'tagging' # end2end, recursion, tagging
-        self.data_mode = 'offline' # online, offline 
+        self.data_src = 'aor' # aes, aor, aec
+        self.method = 'e2e' # e2e, tag, rec
+        self.data_mode = 'offline' # offline, online
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
-        # gru_ptr, lstm_ptr, bi_gru_ptr, bi_lstm_ptr
         self.model_name = 'bi_lstm_rnn_att'
         self.load_check_point = False
-        self.num_size = 100 # numbers involved
+        self.num_size = 10 # numbers involved
         self.seq_len = 5 # input sequence length
         self.data_size = 10000 # total data size
         # I/O directory
@@ -59,13 +58,13 @@ class Config():
         # data loader
         self.batch_size = 256
         self.shuffle = True
+        self.num_workers = 2
+        self.pin_memory = True
         self.drop_last = True
         # val
-        self.val_win_size = 128
+        self.val_win_size = 512
         # model
         self.learning_rate = 1e-4
-        if 'ptr' in self.model_name:
-            self.learning_rate = 5e-3
         self.teacher_forcing_ratio = 0.5
         self.clipping_threshold = 0.5
         # embedding
@@ -87,27 +86,30 @@ class Config():
         self.tfm_en_num_layers = 1
         self.tfm_de_num_layers = 1
 
-class End2EndConfig(Config):
-    """docstring for End2EndConfig"""
+class E2EConfig(Config):
+    """docstring for E2EConfig"""
     def __init__(self):
-        super(End2EndConfig, self).__init__()
+        super(E2EConfig, self).__init__()
     
-class RecursionConfig(Config):
-    """docstring for RecursionConfig"""
+class RecConfig(Config):
+    """docstring for RecConfig"""
     def __init__(self):
-        super(RecursionConfig, self).__init__()
+        super(RecConfig, self).__init__()
         # define the max inference step
-        if self.data_src == 'aoi':
-            self.max_infer_step = self.seq_len
-            self.tgt_seq_len = 3 # action, position, target operator
-        elif self.data_src == 'nss':
-            self.max_infer_step = self.seq_len
-            self.tgt_seq_len = 2 # src_idx_to_swap, tgt_idx_to_swap
-        elif self.data_src == 'aes':
+        if self.data_src == 'aes':
             self.max_infer_step = self.seq_len
             self.tgt_seq_len = 3 # start_idx, end_idx, target value
+        elif self.data_src == 'aor':
+            self.max_infer_step = self.seq_len
+            self.tgt_seq_len = 3 # action, position, target operator
+        elif self.data_src == 'aec':
+            raise NotImplementedError
 
-class TaggingConfig(Config):
-    """docstring for TaggingConfig"""
+class TagConfig(Config):
+    """docstring for TagConfig"""
     def __init__(self):
-        super(TaggingConfig, self).__init__()
+        super(TagConfig, self).__init__()
+        if self.data_src == 'aes':
+            self.tgt_seq_len = self.seq_len + self.seq_len*6
+        else:
+            self.tgt_seq_len = None

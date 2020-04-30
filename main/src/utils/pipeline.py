@@ -15,8 +15,7 @@ from ..models import (
     transformer, 
     gru_rnn, lstm_rnn, 
     bi_gru_rnn, bi_lstm_rnn, 
-    bi_gru_rnn_att, bi_lstm_rnn_att, 
-    gru_ptr, lstm_ptr, bi_gru_ptr, bi_lstm_ptr)
+    bi_gru_rnn_att, bi_lstm_rnn_att)
 
 
 class OfflineDataset(torch_data.Dataset):
@@ -25,13 +24,20 @@ class OfflineDataset(torch_data.Dataset):
         super(OfflineDataset, self).__init__()
         self.xs = data_dict['xs']
         self.ys = data_dict['ys']
+        if 'ys_' in data_dict:
+            self.ys_ = data_dict['ys_']
+        else:
+            self.ys_ = None
         self.data_size = len(self.ys)
         
     def __len__(self): 
         return self.data_size
 
     def __getitem__(self, idx): 
-        return self.xs[idx], self.ys[idx]
+        if self.ys_ is None: 
+            return self.xs[idx], self.ys[idx] 
+        else:
+            return self.xs[idx], self.ys_[idx]
 
 
 class OnlineDataset(torch_data.Dataset):
@@ -50,62 +56,62 @@ class OnlineDataset(torch_data.Dataset):
 
 def pick_model(config, method):
     if config.model_name == 'transformer':
-        if method == 'end2end':
-            return transformer.End2EndModelGraph(config).to(config.device)
-        elif method == 'recursion':
-            return transformer.RecursionModelGraph(config).to(config.device)
+        if method == 'e2e':
+            return transformer.E2EModelGraph(config).to(config.device)
+        elif method == 'rec':
+            return transformer.RecModelGraph(config).to(config.device)
 
     elif config.model_name == 'gru_rnn':
-        if method == 'end2end':
-            return gru_rnn.End2EndModelGraph(config).to(config.device)
-        elif method == 'recursion':
-            return gru_rnn.RecursionModelGraph(config).to(config.device)
+        if method == 'e2e':
+            return gru_rnn.E2EModelGraph(config).to(config.device)
+        elif method == 'rec':
+            return gru_rnn.RecModelGraph(config).to(config.device)
 
     elif config.model_name == 'lstm_rnn':
-        if method == 'end2end':
-            return lstm_rnn.End2EndModelGraph(config).to(config.device)
-        elif method == 'recursion':
-            return lstm_rnn.RecursionModelGraph(config).to(config.device)
+        if method == 'e2e':
+            return lstm_rnn.E2EModelGraph(config).to(config.device)
+        elif method == 'rec':
+            return lstm_rnn.RecModelGraph(config).to(config.device)
 
     elif config.model_name == 'bi_gru_rnn':
-        if method == 'end2end':
-            return bi_gru_rnn.End2EndModelGraph(config).to(config.device)
-        elif method == 'recursion':
-            return bi_gru_rnn.RecursionModelGraph(config).to(config.device)
+        if method == 'e2e':
+            return bi_gru_rnn.E2EModelGraph(config).to(config.device)
+        elif method == 'rec':
+            return bi_gru_rnn.RecModelGraph(config).to(config.device)
 
     elif config.model_name == 'bi_lstm_rnn':
-        if method == 'end2end':
-            return bi_lstm_rnn.End2EndModelGraph(config).to(config.device)
-        elif method == 'recursion':
-            return bi_lstm_rnn.RecursionModelGraph(config).to(config.device)
+        if method == 'e2e':
+            return bi_lstm_rnn.E2EModelGraph(config).to(config.device)
+        elif method == 'rec':
+            return bi_lstm_rnn.RecModelGraph(config).to(config.device)
 
     elif config.model_name =='bi_gru_rnn_att':
-        if method == 'end2end':
-            return bi_gru_rnn_att.End2EndModelGraph(config).to(config.device)
-        elif method == 'recursion':
-            return bi_gru_rnn_att.RecursionModelGraph(config).to(config.device)
+        if method == 'e2e':
+            return bi_gru_rnn_att.E2EModelGraph(config).to(config.device)
+        elif method == 'rec':
+            return bi_gru_rnn_att.RecModelGraph(config).to(config.device)
 
     elif config.model_name =='bi_lstm_rnn_att':
-        if method == 'end2end':
-            return bi_lstm_rnn_att.End2EndModelGraph(config).to(config.device)
-        elif method == 'recursion':
-            return bi_lstm_rnn_att.RecursionModelGraph(config).to(config.device)
+        if method == 'e2e':
+            return bi_lstm_rnn_att.E2EModelGraph(config).to(config.device)
+        elif method == 'rec':
+            return bi_lstm_rnn_att.RecModelGraph(config).to(config.device)
 
-    elif config.model_name == 'gru_ptr':
-        if method == 'end2end':
-            return gru_ptr.End2EndModelGraph(config).to(config.device)
+    # elif config.model_name == 'gru_ptr':
+    #     if method == 'end2end':
+    #         return gru_ptr.End2EndModelGraph(config).to(config.device)
 
-    elif config.model_name == 'lstm_ptr':
-        if method == 'end2end':
-            return lstm_ptr.End2EndModelGraph(config).to(config.device)
+    # elif config.model_name == 'lstm_ptr':
+    #     if method == 'end2end':
+    #         return lstm_ptr.End2EndModelGraph(config).to(config.device)
 
-    elif config.model_name == 'bi_gru_ptr':
-        if method == 'end2end':
-            return bi_gru_ptr.End2EndModelGraph(config).to(config.device)
+    # elif config.model_name == 'bi_gru_ptr':
+    #     if method == 'end2end':
+    #         return bi_gru_ptr.End2EndModelGraph(config).to(config.device)
 
-    elif config.model_name == 'bi_lstm_ptr':
-        if method == 'end2end':
-            return bi_lstm_ptr.End2EndModelGraph(config).to(config.device)
+    # elif config.model_name == 'bi_lstm_ptr':
+    #     if method == 'end2end':
+    #         return bi_lstm_ptr.End2EndModelGraph(config).to(config.device)
 
     else:
         raise ValueError('Wrong model to pick.')
@@ -163,7 +169,7 @@ def post_process(srcs, tgts, preds, config):
     srcs = [rm_idx(src, config.pad_idx) for src in srcs] 
     tgts = [rm_idx(tgt, config.pad_idx) for tgt in tgts] 
     preds = [rm_idx(pred, config.pad_idx) for pred in preds] 
-    if config.method in ['end2end', 'tagging']:
+    if config.method in ['e2e', 'tag']:
         # remove end idx
         end_idxes = [p.index(config.end_idx)+1 if config.end_idx in p else len(p) for p in preds]
         preds = [p[:idx] for idx, p in zip(end_idxes, preds)]
@@ -247,7 +253,7 @@ class ArithmeticEquationSimplification():
         xs = []
         for y in ys: 
             num_idx = [i for i, token in enumerate(y) if token.isdigit()]
-            num_to_replace = np.random.choice(range(len(num_idx)))
+            num_to_replace = np.random.choice(range(len(num_idx)+1))
             idx_to_replace = np.random.choice(num_idx, num_to_replace, False)
             for i in idx_to_replace:
                 y[i] = np.random.choice(self.base_dict[y[i]])
@@ -258,11 +264,13 @@ def aes_sampler(ys: list, aes) -> list:
     xs = aes.replace_numbers(ys.copy())
     return [(x, y) for x, y in zip(xs, ys)]
 
-def inverse_sampler(data, data_src, aes=None):
-    if data_src == 'nss':
-        return nss_sampler(data)
-    elif data_src == 'aes':
-        return aes_sampler(data, aes)
+def inverse_sampler(data, data_src, aes=None): 
+    if data_src == 'aes': 
+        return aes_sampler(data, aes) 
+    elif data_src == 'aoc': 
+        raise NotImplementedError
+    # elif data_src == 'nss':
+    #     return nss_sampler(data)
     else:
         return data
 
@@ -271,8 +279,8 @@ def get_nss_sample_p(seq_len, min_p=0.01, max_p=1.0):
     ps = [min_p + (max_p-min_p)*np.exp(-decay_rate*i) for i in range(seq_len)]
     return ps/sum(ps)
 
-def end2end_online_generator(data_src: str, data) -> list:
-    # online training data generation
+def e2e_online_generator(data_src: str, data) -> list:
+    # online training data generation for end2end
     # for Arithmetic Equation Simplification (AES) 
     if data_src == 'aes': 
         x, y = data
@@ -287,26 +295,8 @@ def end2end_online_generator(data_src: str, data) -> list:
         index = np.random.choice(range(len(xs)))
         x = xs[index]
         return x, y
-    # for Number Sequence Sorting (NSS)
-    elif data_src == 'nss':
-        # for swap sort
-        x, y = data
-        x = convert_to_int(x)
-        y = convert_to_int(y)
-        xs = [x.copy()]
-        while True:
-            src_idx = find_src_index_to_swap(x, y) 
-            tgt_idx = find_tgt_index_to_swap(x, src_idx)
-            if src_idx == tgt_idx == -1:
-                break
-            x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
-            xs.append(x.copy())
-        index = np.random.choice(range(len(xs)))
-        x = convert_to_str(xs[index])
-        y = convert_to_str(y)
-        return x, y
-    # for Arithmetic Operators Insertion (AOI)
-    elif data_src == 'aoi':
+    # for Arithmetic Operators Restoration (AOR)
+    elif data_src == 'aor':
         # make a copy
         y = data.copy() # list
         x = y.copy()
@@ -314,16 +304,34 @@ def end2end_online_generator(data_src: str, data) -> list:
         operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
         # decide how many operators to remove
         num_idxes = np.random.choice(range(len(operator_idxes)+1))
-        if num_idxes == 0:
-            return x, y
-        else:
-            # decide operators to remove
-            idxes_to_remove = operator_idxes[:num_idxes]
-            x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
-            return x, y
+        # decide operators to remove
+        idxes_to_remove = operator_idxes[:num_idxes]
+        x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
+        return x, y
+    # for Arithmetic Equation Correction (AOC)
+    elif data_src == 'aoc':
+        raise NotImplementedError
+    # for Number Sequence Sorting (NSS)
+    # elif data_src == 'nss':
+    #     # for swap sort
+    #     x, y = data
+    #     x = convert_to_int(x)
+    #     y = convert_to_int(y)
+    #     xs = [x.copy()]
+    #     while True:
+    #         src_idx = find_src_index_to_swap(x, y) 
+    #         tgt_idx = find_tgt_index_to_swap(x, src_idx)
+    #         if src_idx == tgt_idx == -1:
+    #             break
+    #         x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
+    #         xs.append(x.copy())
+    #     index = np.random.choice(range(len(xs)))
+    #     x = convert_to_str(xs[index])
+    #     y = convert_to_str(y)
+    #     return x, y
 
-def recursion_online_generator(data_src: str, data: list) -> list:
-    # online training data generation
+def rec_online_generator(data_src: str, data: list) -> list:
+    # online training data generation for recurrent inference
     # for Arithmetic Equation Simplification (AES) 
     if data_src == 'aes': 
         x, y = data
@@ -343,27 +351,27 @@ def recursion_online_generator(data_src: str, data: list) -> list:
         y_ = ys_[index]
         return x, y_
     # for Number Sequence Sorting (NSS)
-    elif data_src == 'nss':
-        # for swap sort
-        x, y = data
-        x = convert_to_int(x)
-        y = convert_to_int(y)
-        xs = [x.copy()]
-        ys_ = []
-        while True:
-            src_idx = find_src_index_to_swap(x, y) 
-            tgt_idx = find_tgt_index_to_swap(x, src_idx)
-            ys_.append([src_idx, tgt_idx])
-            if src_idx == tgt_idx == -1:
-                break
-            x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
-            xs.append(x.copy())
-        index = np.random.choice(range(len(xs)))
-        x = convert_to_str(xs[index])
-        y_ = convert_to_str(ys_[index])
-        return x, y_
-    # for Arithmetic Operators Insertion (AOI)
-    elif data_src == 'aoi':
+    # elif data_src == 'nss':
+    #     # for swap sort
+    #     x, y = data
+    #     x = convert_to_int(x)
+    #     y = convert_to_int(y)
+    #     xs = [x.copy()]
+    #     ys_ = []
+    #     while True:
+    #         src_idx = find_src_index_to_swap(x, y) 
+    #         tgt_idx = find_tgt_index_to_swap(x, src_idx)
+    #         ys_.append([src_idx, tgt_idx])
+    #         if src_idx == tgt_idx == -1:
+    #             break
+    #         x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
+    #         xs.append(x.copy())
+    #     index = np.random.choice(range(len(xs)))
+    #     x = convert_to_str(xs[index])
+    #     y_ = convert_to_str(ys_[index])
+    #     return x, y_
+    # for Arithmetic Operators Restoration (AOR)
+    elif data_src == 'aor':
         # make a copy
         y = data.copy() # list
         x = y.copy()
@@ -372,17 +380,17 @@ def recursion_online_generator(data_src: str, data: list) -> list:
         # decide how many operators to remove
         num_idxes = np.random.choice(range(len(operator_idxes)+1))
         if num_idxes == 0:
-            return x, ['<completion>', '<none>', '<none>']
+            return x, ['<done>', '<done>']
         else:
             # decide operators to remove
             idxes_to_remove = operator_idxes[:num_idxes]
             # generat label
-            y = ['<insertion>', str(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
+            y_ = ['pos_{}'.format(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
             # generate sample
             x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
-            return x, y
+            return x, y_
 
-def recursion_offline_generator(data_src: str, data) -> list: 
+def rec_offline_generator(data_src: str, data) -> list: 
     # for Arithmetic Equation Simplification (AES) 
     if data_src == 'aes':
         x, y = data
@@ -395,26 +403,29 @@ def recursion_offline_generator(data_src: str, data) -> list:
             v = y[left_idx] 
             y_ = ['<pos_{}>'.format(left_idx), '<pos_{}>'.format(right_idx), v]
         return x, y_
-    # for Number Sequence Sorting (NSS)
-    elif data_src == 'nss': 
-        # for swap sort
-        x, y = data
-        x = convert_to_int(x)
-        y = convert_to_int(y)
-        if x == y:
-            y_ = [-1, -1]
-        else:
-            src_idx = find_src_index_to_swap(x, y) 
-            tgt_idx = find_tgt_index_to_swap(x, src_idx)
-            y_ = [src_idx, tgt_idx]
-        x = convert_to_str(x)
-        y_ = convert_to_str(y_)
-        return x, y_
-    # for Arithmetic Operators Insertion (AOI)
-    elif data_src == 'aoi': 
+    # for Arithmetic Operators Restoration (AOR)
+    elif data_src == 'aor': 
         return data
+    # for Arithmetic Equation Correction (AEC)
+    elif data_src == 'aec': 
+        raise NotImplementedError
+    # for Number Sequence Sorting (NSS)
+    # elif data_src == 'nss': 
+    #     # for swap sort
+    #     x, y = data
+    #     x = convert_to_int(x)
+    #     y = convert_to_int(y)
+    #     if x == y:
+    #         y_ = [-1, -1]
+    #     else:
+    #         src_idx = find_src_index_to_swap(x, y) 
+    #         tgt_idx = find_tgt_index_to_swap(x, src_idx)
+    #         y_ = [src_idx, tgt_idx]
+    #     x = convert_to_str(x)
+    #     y_ = convert_to_str(y_)
+    #     return x, y_
 
-def tagging_online_generator(data_src: str, data) -> list:
+def tag_online_generator(data_src: str, data) -> list:
     # for Arithmetic Equation Simplification (AES) 
     if data_src == 'aes': 
         # pick an intermediate step
@@ -429,19 +440,20 @@ def tagging_online_generator(data_src: str, data) -> list:
             xs.append(x)
         index = np.random.choice(range(len(xs)))
         x = xs[index]
-        # convert to the tagging style
+        # convert to tagging sequences
         y_ = []
         x_ = x.copy()
         x_token = x_.pop(0)
-        for i in range(len(y)): 
-            y_token = y[i] 
+        for i in range(len(y)):
+            y_token = y[i]
             if x_token == y_token:
                 y_.append('<keep>')
                 if len(x_) == 0:
                     break
                 x_token = x_.pop(0)
             else:
-                y_.append('<add_{}>'.format(y_token))
+                y_.append('<sub_{}>'.format(y_token))
+                x_token = x_.pop(0)
                 while True:
                     y_.append('<delete>')
                     if x_token == ')':
@@ -450,11 +462,8 @@ def tagging_online_generator(data_src: str, data) -> list:
                         break
                     x_token = x_.pop(0)
         return x, y_
-    # for Number Sequence Sorting (NSS)
-    elif data_src == 'nss':
-        pass
-    # for Arithmetic Operators Insertion (AOI)
-    elif data_src == 'aoi':
+    # for Arithmetic Operators Restoration (AOR)
+    elif data_src == 'aor':
         # make a copy
         y = data
         x = data.copy()
@@ -468,7 +477,7 @@ def tagging_online_generator(data_src: str, data) -> list:
             # decide operators to remove
             idxes_to_remove = operator_idxes[:num_idxes]
             x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
-            # generate tagging label
+            # convert to tagging sequences
             x_ = x.copy()
             y_ = []
             x_token = x_.pop(0)
@@ -480,25 +489,32 @@ def tagging_online_generator(data_src: str, data) -> list:
                         break
                     x_token = x_.pop(0)
                 else:
-                    y_.append('<add_{}>'.format(y_token))
+                    y_.append('<insert_{}>'.format(y_token))
             return x, y_
+    # for Arithmetic Equation Correction (AEC)
+    elif data_src == 'aec': 
+        raise NotImplementedError
+    # for Number Sequence Sorting (NSS)
+    # elif data_src == 'nss':
+    #     pass
 
-def tagging_offline_generator(data_src: str, data) -> list:
+def tag_offline_generator(data_src: str, data) -> list:
     # for Arithmetic Equation Simplification (AES) 
     if data_src == 'aes': 
         x, y = data
         y_ = []
         x_ = x.copy()
         x_token = x_.pop(0)
-        for i in range(len(y)): 
-            y_token = y[i] 
+        for i in range(len(y)):
+            y_token = y[i]
             if x_token == y_token:
                 y_.append('<keep>')
                 if len(x_) == 0:
                     break
                 x_token = x_.pop(0)
             else:
-                y_.append('<add_{}>'.format(y_token))
+                y_.append('<sub_{}>'.format(y_token))
+                x_token = x_.pop(0)
                 while True:
                     y_.append('<delete>')
                     if x_token == ')':
@@ -507,32 +523,34 @@ def tagging_offline_generator(data_src: str, data) -> list:
                         break
                     x_token = x_.pop(0)
         return x, y_
-    # for Number Sequence Sorting (NSS)
-    elif data_src == 'nss':
-        pass
     # for Arithmetic Operators Insertion (AOI)
-    elif data_src == 'aoi':
-        pass
+    elif data_src == 'aor': 
+        return data
+    elif data_src == 'aoc':
+        raise NotImplementedError
+    # for Number Sequence Sorting (NSS)
+    # elif data_src == 'nss':
+    #     pass
 
 def data_generator(data, config):
     # for end2end
-    if config.method == 'end2end':
+    if config.method == 'e2e':
         if config.data_mode == 'online': 
-            xs, ys = zip(*[end2end_online_generator(config.data_src, d) for  d in data])
+            xs, ys = zip(*[e2e_online_generator(config.data_src, d) for  d in data])
         elif config.data_mode == 'offline': 
             xs, ys = zip(*data)
     # for recurrent inference
-    elif config.method == 'recursion': 
+    elif config.method == 'rec': 
         if config.data_mode == 'online':
-            xs, ys = zip(*[recursion_online_generator(config.data_src, d) for d in data])
+            xs, ys = zip(*[rec_online_generator(config.data_src, d) for d in data])
         elif config.data_mode == 'offline':
-            xs, ys = zip(*[recursion_offline_generator(config.data_src, d) for d in data])
+            xs, ys = zip(*[rec_offline_generator(config.data_src, d) for d in data])
     # for tagging
-    elif config.method == 'tagging':
+    elif config.method == 'tag':
         if config.data_mode == 'online':
-            xs, ys = zip(*[tagging_online_generator(config.data_src, d) for d in data])
+            xs, ys = zip(*[tag_online_generator(config.data_src, d) for d in data])
         elif config.data_mode == 'offline':
-            xs, ys = zip(*[tagging_offline_generator(config.data_src, d) for d in data])
+            xs, ys = zip(*[tag_offline_generator(config.data_src, d) for d in data])
 
     return xs, ys
 
@@ -540,7 +558,7 @@ def preprocess(xs, ys, src_vocab2idx_dict, tgt_vocab2idx_dict, config, train=Tru
     # vocab to index
     xs = [translate(x, src_vocab2idx_dict) for x in xs]
     ys = [translate(y, tgt_vocab2idx_dict) for y in ys]
-    if config.method in ['end2end', 'tagging'] and train and 'ptr' not in config.model_name:
+    if config.method in ['e2e', 'tag'] and train:
         # add end symbol and save as tensor
         xs = [torch.Tensor(x) for x in xs]
         ys = [torch.Tensor(y + [config.end_idx]) for y in ys] 
@@ -561,7 +579,7 @@ def padding(seqs, max_len=None):
     for i, seq in enumerate(seqs): 
         seq_len = seq_lens[i]
         padded_seqs[i, :seq_len] = seq[:seq_len]
-    return padded_seqs, seq_lens
+    return padded_seqs, torch.Tensor(seq_lens)
 
 def is_int(v):
     try:
@@ -583,36 +601,19 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
     # convert index to vocab
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
-    # inference function for Arithmetic Operators Insertion (AOI)
-    if config.data_src == 'aoi':
-        if np.array_equal(np.array(ys_)[:, 0], np.array(['<completion>']*len(ys_))):
-            done = True
-        else:
-            done = False
-            for x, y_ in zip(xs, ys_): 
-                if y_[0] == '<insertion>' and y_[1].isdigit() and y_[2] in set(['+', '-', '*', '/', '==']): 
-                    x.insert(int(y_[1]), y_[2]) 
-        xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
-        # TODO: why padding leads to an incorrect prediction
-        xs, x_lens = padding(xs, config.seq_len*2)
-        # xs, x_lens = padding(xs)
-    # inference function for Number Sequence Sorting (NSS)
-    elif config.data_src == 'nss': 
-        # for swap sort
-        xs = np.array(xs)
-        ys_ = np.array(ys_)
-        is_numeric = np.vectorize(is_int, otypes=[bool])
-        mask = np.logical_and(ys_ != '-1', is_numeric(ys_)).all(axis=-1)
+    # inference function for Arithmetic Operators Restoration (AOR)
+    if config.data_src == 'aor':
+        mask = (np.array(ys_) != '<done>').all(axis=-1)
         if not mask.any():
             done = True
         else:
             done = False
-            # ndarray inference
-            src_idxes = ys_[mask].astype(int)[:, 0] 
-            tgt_idxes = ys_[mask].astype(int)[:, 1]
-            xs[mask, src_idxes], xs[mask, tgt_idxes] = xs[mask, tgt_idxes], xs[mask, src_idxes] 
+            # for loop inference
+            for x, y_ in zip(xs, ys_): 
+                if y_[0].startswith('<pos_') and y_[1] in set(['+', '-', '*', '/', '==']): 
+                    x.insert(parse_pos(y_[0]), y_[1]) 
         xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
-        xs, x_lens = padding(xs)
+        xs, x_lens = padding(xs, config.seq_len*2)
     # inference function for Arithmetic Equation Simplification (AES)
     elif config.data_src == 'aes': 
         mask = (np.array(ys_) != '<done>').all(axis=-1)
@@ -629,16 +630,36 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
                     xs[i] = x[:left_idx] + [y_[2]] + x[right_idx+1:]
         xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
         xs, x_lens = padding(xs)
-    return xs.to(config.device), torch.Tensor(x_lens).to(config.device), done
+    # inference function for Arithmetic Equation Correction (AEC) 
+    elif config.data_src == 'aec':
+        raise NotImplementedError
+    # inference function for Number Sequence Sorting (NSS)
+    # elif config.data_src == 'nss': 
+    #     # for swap sort
+    #     xs = np.array(xs)
+    #     ys_ = np.array(ys_)
+    #     is_numeric = np.vectorize(is_int, otypes=[bool])
+    #     mask = np.logical_and(ys_ != '-1', is_numeric(ys_)).all(axis=-1)
+    #     if not mask.any():
+    #         done = True
+    #     else:
+    #         done = False
+    #         # ndarray inference
+    #         src_idxes = ys_[mask].astype(int)[:, 0] 
+    #         tgt_idxes = ys_[mask].astype(int)[:, 1]
+    #         xs[mask, src_idxes], xs[mask, tgt_idxes] = xs[mask, tgt_idxes], xs[mask, src_idxes] 
+    #     xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
+    #     xs, x_lens = padding(xs)
+    return xs.to(config.device), x_lens.to(config.device), done
 
-def recursive_infer(xs, x_lens, model, max_infer_step, 
+def rec_infer(xs, x_lens, model, max_infer_step, 
     src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done=False):
     # recursive inference in valudation and testing
     # if config.data_src in ['aoi']:
     if max_infer_step == 0:
         return xs, x_lens, False
     else:
-        xs, x_lens, done = recursive_infer(xs, x_lens, model, max_infer_step-1, 
+        xs, x_lens, done = rec_infer(xs, x_lens, model, max_infer_step-1, 
             src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config, done) 
         if done:
             return xs, x_lens, done
@@ -664,7 +685,7 @@ def recursive_infer(xs, x_lens, model, max_infer_step,
     #         x_lens -= 1
     #     return res, None, None
 
-def tagging_execution(x, y_):
+def tag_execute(x, y_):
     p = []
     x_ = x.copy()
     x_token = x_.pop(0)
@@ -682,20 +703,26 @@ def tagging_execution(x, y_):
                 break
             else:
                 x_token = x_.pop(0)
-        elif 'add' in y_token:
-            # add token
-            y_token = y_token.split('<add_')[1].split('>')[0]
-            p.append(y_token)
+        elif 'insert' in y_token:
+            # insert token
+            p.append(y_token[8:-1])
+        elif 'sub' in y_token:
+            # substitute token
+            p.append(y_token[5:-1])
+            if len(x_) == 0:
+                break
+            else:
+                x_token = x_.pop(0)
         else:
             # end symbol or pad symbol
             break
     # return prediction
     return p
 
-def tagging_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict):
+def tag_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict):
     # convert index to vocab
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
-    preds = [tagging_execution(x, y_) for x, y_ in zip(xs, ys_)]
+    preds = [tag_execute(x, y_) for x, y_ in zip(xs, ys_)]
     # convert vocab to index
     return [translate(p, src_vocab2idx_dict) for p in preds]

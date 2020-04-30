@@ -22,7 +22,7 @@ class Evaluate():
         self.key_metric = self.token_acc
         # generate an evaluation message
         self.eva_msg = 'Token Acc:{:.4f} Seq Acc:{:.4f}'.format(self.token_acc, self.seq_acc)
-        if self.config.data_src == 'aoi' and not train:
+        if self.config.data_src == 'aor' and not train:
             # if hold equation 
             self.eq_acc = self.get_eq_acc()
             # main metric for early stopping
