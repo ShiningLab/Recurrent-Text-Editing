@@ -3,6 +3,7 @@
 
 #public
 import torch
+torch.manual_seed(0)
 from torch.utils import data as torch_data
 
 import copy
@@ -212,14 +213,14 @@ def convert_to_int(seq: list) -> list:
 def convert_to_str(seq: list) -> str:
     return [str(int_number) for int_number in seq]
 
-def nss_sampler(ys: list) -> list:
-    xs = []
-    for y in ys:
-        idx = np.arange(len(y))
-        np.random.shuffle(idx)
-        x = np.array(y)[idx].tolist()
-        xs.append(x)
-    return [(x, y) for x, y in zip(xs, ys)]
+# def nss_sampler(ys: list) -> list:
+#     xs = []
+#     for y in ys:
+#         idx = np.arange(len(y))
+#         np.random.shuffle(idx)
+#         x = np.array(y)[idx].tolist()
+#         xs.append(x)
+#     return [(x, y) for x, y in zip(xs, ys)]
 
 # class for data generation of the Arithmetic Equation Simplification (AES) problem 
 class ArithmeticEquationSimplification(): 
@@ -267,17 +268,17 @@ def aes_sampler(ys: list, aes) -> list:
 def inverse_sampler(data, data_src, aes=None): 
     if data_src == 'aes': 
         return aes_sampler(data, aes) 
+    elif data_src == 'aor': 
+        return data
     elif data_src == 'aoc': 
         raise NotImplementedError
     # elif data_src == 'nss':
     #     return nss_sampler(data)
-    else:
-        return data
 
-def get_nss_sample_p(seq_len, min_p=0.01, max_p=1.0):
-    decay_rate = 0.5/seq_len
-    ps = [min_p + (max_p-min_p)*np.exp(-decay_rate*i) for i in range(seq_len)]
-    return ps/sum(ps)
+# def get_nss_sample_p(seq_len, min_p=0.01, max_p=1.0):
+#     decay_rate = 0.5/seq_len
+#     ps = [min_p + (max_p-min_p)*np.exp(-decay_rate*i) for i in range(seq_len)]
+#     return ps/sum(ps)
 
 def e2e_online_generator(data_src: str, data) -> list:
     # online training data generation for end2end
@@ -350,6 +351,25 @@ def rec_online_generator(data_src: str, data: list) -> list:
         x = xs[index]
         y_ = ys_[index]
         return x, y_
+    # for Arithmetic Operators Restoration (AOR)
+    elif data_src == 'aor':
+        # make a copy
+        y = data.copy() # list
+        x = y.copy()
+        # get operator indexes
+        operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
+        # decide how many operators to remove
+        num_idxes = np.random.choice(range(len(operator_idxes)+1))
+        if num_idxes == 0:
+            return x, ['<done>', '<done>']
+        else:
+            # decide operators to remove
+            idxes_to_remove = operator_idxes[:num_idxes]
+            # generat label
+            y_ = ['<pos_{}>'.format(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
+            # generate sample
+            x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
+            return x, y_
     # for Number Sequence Sorting (NSS)
     # elif data_src == 'nss':
     #     # for swap sort
@@ -370,25 +390,6 @@ def rec_online_generator(data_src: str, data: list) -> list:
     #     x = convert_to_str(xs[index])
     #     y_ = convert_to_str(ys_[index])
     #     return x, y_
-    # for Arithmetic Operators Restoration (AOR)
-    elif data_src == 'aor':
-        # make a copy
-        y = data.copy() # list
-        x = y.copy()
-        # get operator indexes
-        operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
-        # decide how many operators to remove
-        num_idxes = np.random.choice(range(len(operator_idxes)+1))
-        if num_idxes == 0:
-            return x, ['<done>', '<done>']
-        else:
-            # decide operators to remove
-            idxes_to_remove = operator_idxes[:num_idxes]
-            # generat label
-            y_ = ['pos_{}'.format(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
-            # generate sample
-            x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
-            return x, y_
 
 def rec_offline_generator(data_src: str, data) -> list: 
     # for Arithmetic Equation Simplification (AES) 

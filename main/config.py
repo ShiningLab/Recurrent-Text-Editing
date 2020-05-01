@@ -16,7 +16,7 @@ class Config():
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
-        self.model_name = 'bi_lstm_rnn_att'
+        self.model_name = 'transformer'
         self.load_check_point = False
         self.num_size = 10 # numbers involved
         self.seq_len = 5 # input sequence length
@@ -83,8 +83,8 @@ class Config():
         # transformer specific dims
         self.ffnn_dim = 2048
         self.num_heads = 8
-        self.tfm_en_num_layers = 1
-        self.tfm_de_num_layers = 1
+        self.tfm_en_num_layers = 2
+        self.tfm_de_num_layers = 2
 
 class E2EConfig(Config):
     """docstring for E2EConfig"""

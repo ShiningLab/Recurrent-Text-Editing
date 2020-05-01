@@ -38,7 +38,7 @@ def gen_rec_pair(y: list) -> list:
         # decide operators to remove
         idxes_to_remove = operator_idxes[:num_idxes]
         # generat label
-        y_ = ['pos_{}'.format(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
+        y_ = ['<pos_{}>'.format(idxes_to_remove[-1]), x[idxes_to_remove[-1]]]
         # generate sample
         x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
         

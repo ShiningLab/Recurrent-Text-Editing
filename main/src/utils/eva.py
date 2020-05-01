@@ -32,7 +32,7 @@ class Evaluate():
 
     def check_equation(self, tgt, pred): 
         # remove end symbol
-        if self.config.method in ['end2end']:
+        if self.config.method == 'e2e':
             # remove end symbol
             tgt = [t for t in tgt if t != self.config.end_idx]
             pred = [p for p in pred if p != self.config.end_idx]
