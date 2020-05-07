@@ -66,7 +66,7 @@ class Config():
         # model
         self.learning_rate = 1e-4
         self.teacher_forcing_ratio = 0.5
-        self.clipping_threshold = 0.5
+        self.clipping_threshold = 2.
         # embedding
         self.embedding_size = 512
         # encoder
