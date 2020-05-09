@@ -41,6 +41,10 @@ class TextEditor(object):
             self.aes = ArithmeticEquationSimplification(self.config)
         else:
             self.aes = None
+        if self.config.data_src == 'aec':
+            self.aec = ArithmeticEquationCorrection(self.config)
+        else: 
+            self.aec = None
 
     def setup_gpu(self): 
         # verify devices which can be either cpu or gpu
@@ -63,10 +67,10 @@ class TextEditor(object):
     def train_end2end_collate_fn(self, data): 
         # a customized collate function used in the data loader 
         data.sort(key=len, reverse=True)
-        # sampling for many2one task such as nss and aes
-        data = inverse_sampler(data, self.config.data_src, self.aes)
+        # sampling for many2one task such as aes and aec
+        data = inverse_sampler(data, self.config.data_src, self.aes, self.aec)
         # sampling intermediate step
-        xs, ys = data_generator(data, self.config)
+        xs, ys = data_generator(data, self.config) 
         # convert to index, add end symbol, and save as tensor
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config)
@@ -97,7 +101,7 @@ class TextEditor(object):
         # read data dictionary from json file
         self.data_dict = load_json(self.config.DATA_PATH)
         # train data loader
-        if self.config.data_mode == 'online' or self.config.data_src == 'aes': 
+        if self.config.data_mode == 'online' or self.config.data_src in ['aes', 'aec']: 
             self.train_dataset = OnlineDataset(data_dict=self.data_dict['train'])
         else:
             self.train_dataset = OfflineDataset(data_dict=self.data_dict['train'])
@@ -167,14 +171,14 @@ class TextEditor(object):
             for data in trainset_generator: 
                 data = (d.to(self.config.device) for d in data)
                 xs, x_lens, ys = data
-            #     print(x_lens.cpu().detach().numpy()[0])
-            #     print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
-            #     print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
+                # print(x_lens.cpu().detach().numpy()[0])
+                # print(translate(xs.cpu().detach().numpy()[0], self.src_idx2vocab_dict))
+                # print(translate(ys.cpu().detach().numpy()[0], self.tgt_idx2vocab_dict))
             #     break
             # break
                 ys_ = self.model(xs, x_lens, ys, teacher_forcing_ratio=self.config.teacher_forcing_ratio)
                 loss = self.criterion(ys_.reshape(-1, self.config.tgt_vocab_size), ys.reshape(-1))
-            #     break
+                # break
             # break
                 # update step
                 loss.backward()

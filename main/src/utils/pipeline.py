@@ -10,6 +10,7 @@ import copy
 import random
 import numpy as np
 np.random.seed(0)
+import Levenshtein 
 
 # private
 from ..models import (
@@ -213,15 +214,6 @@ def convert_to_int(seq: list) -> list:
 def convert_to_str(seq: list) -> str:
     return [str(int_number) for int_number in seq]
 
-# def nss_sampler(ys: list) -> list:
-#     xs = []
-#     for y in ys:
-#         idx = np.arange(len(y))
-#         np.random.shuffle(idx)
-#         x = np.array(y)[idx].tolist()
-#         xs.append(x)
-#     return [(x, y) for x, y in zip(xs, ys)]
-
 # class for data generation of the Arithmetic Equation Simplification (AES) problem 
 class ArithmeticEquationSimplification(): 
     """docstring for ArithmeticEquationSimplification"""
@@ -261,24 +253,77 @@ class ArithmeticEquationSimplification():
             xs.append(' '.join(y).split())
         return xs
 
+
+# class for data generation of the Arithmetic Equation Correction (AEC) problem 
+class ArithmeticEquationCorrection(): 
+    """docstring for ArithmeticEquationCorrection"""
+    def __init__(self, config):
+        super().__init__()
+        self.operators = config.operators
+        self.pos_digits = np.arange(2, config.num_size+2).tolist()
+        self.neg_digits = np.arange(-config.num_size, -1).tolist()
+        self.digits = self.pos_digits + self.neg_digits
+        
+        def delete(tk_y, idx): 
+            tk_y[idx] = ''
+            return tk_y
+        def insert(tk_y, idx): 
+            tk_y[idx] = str(np.random.choice(self.operators+self.pos_digits)) + ' ' + tk_y[idx]
+            return tk_y 
+        def sub(tk_y, idx):
+            tk_y[idx] = str(np.random.choice(self.operators+self.pos_digits))
+            return tk_y
+        
+        self.trans_funs = [delete, insert, sub]
+    
+    def transform(self, y, idxes): 
+        tk_y = y.copy()
+        for idx in idxes: 
+            f = np.random.choice(self.trans_funs)
+            tk_y = f(tk_y, idx)
+        return tk_y
+        
+    def random_transform(self, ys): 
+        ys = copy.deepcopy(ys)
+        xs = []
+        for y in ys:
+            # [0, (len-1/2)]
+            y_len = len(y)-1 
+            num_idxes = np.random.choice(range(int(y_len/2)+1))
+            idxes = sorted(np.random.choice(range(y_len), num_idxes, False)) 
+            x = self.transform(y, idxes) 
+            x = ' '.join([i for i in x if len(i)>0]).split()
+            xs.append(x) 
+        return xs
+
+
+def levenshtein_editops_list(source, target):
+    unique_elements = sorted(set(source + target)) 
+    char_list = [chr(i) for i in range(len(unique_elements))]
+    if len(unique_elements) > len(char_list):
+        raise Exception("too many elements")
+    else:
+        unique_element_map = {ele:char_list[i]  for i, ele in enumerate(unique_elements)}
+    source_str = ''.join([unique_element_map[ele] for ele in source])
+    target_str = ''.join([unique_element_map[ele] for ele in target])
+    transform_list = Levenshtein.editops(source_str, target_str)
+    return transform_list
+
 def aes_sampler(ys: list, aes) -> list: 
     xs = aes.replace_numbers(ys.copy())
     return [(x, y) for x, y in zip(xs, ys)]
 
-def inverse_sampler(data, data_src, aes=None): 
+def aec_sampler(ys: list, aec) -> list:
+    xs = aec.random_transform(ys.copy())
+    return [(x, y) for x, y in zip(xs, ys)]
+
+def inverse_sampler(data, data_src, aes=None, aec=None): 
     if data_src == 'aes': 
         return aes_sampler(data, aes) 
     elif data_src == 'aor': 
         return data
-    elif data_src == 'aoc': 
-        raise NotImplementedError
-    # elif data_src == 'nss':
-    #     return nss_sampler(data)
-
-# def get_nss_sample_p(seq_len, min_p=0.01, max_p=1.0):
-#     decay_rate = 0.5/seq_len
-#     ps = [min_p + (max_p-min_p)*np.exp(-decay_rate*i) for i in range(seq_len)]
-#     return ps/sum(ps)
+    elif data_src == 'aec': 
+        return aec_sampler(data, aec)
 
 def e2e_online_generator(data_src: str, data) -> list:
     # online training data generation for end2end
@@ -299,7 +344,7 @@ def e2e_online_generator(data_src: str, data) -> list:
     # for Arithmetic Operators Restoration (AOR)
     elif data_src == 'aor':
         # make a copy
-        y = data.copy() # list
+        y = data.copy()
         x = y.copy()
         # get operator indexes
         operator_idxes = [i for i, token in enumerate(y) if not token.isdigit()][::-1]
@@ -309,27 +354,27 @@ def e2e_online_generator(data_src: str, data) -> list:
         idxes_to_remove = operator_idxes[:num_idxes]
         x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
         return x, y
-    # for Arithmetic Equation Correction (AOC)
-    elif data_src == 'aoc':
-        raise NotImplementedError
-    # for Number Sequence Sorting (NSS)
-    # elif data_src == 'nss':
-    #     # for swap sort
-    #     x, y = data
-    #     x = convert_to_int(x)
-    #     y = convert_to_int(y)
-    #     xs = [x.copy()]
-    #     while True:
-    #         src_idx = find_src_index_to_swap(x, y) 
-    #         tgt_idx = find_tgt_index_to_swap(x, src_idx)
-    #         if src_idx == tgt_idx == -1:
-    #             break
-    #         x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
-    #         xs.append(x.copy())
-    #     index = np.random.choice(range(len(xs)))
-    #     x = convert_to_str(xs[index])
-    #     y = convert_to_str(y)
-    #     return x, y
+    # for Arithmetic Equation Correction (AEC)
+    elif data_src == 'aec': 
+        # make a copy
+        x, y = data
+        xs = [x.copy()] 
+        editops = levenshtein_editops_list(x, y)
+        c = 0 
+        for tag, i, j in editops: 
+            i += c
+            if tag == 'replace':
+                x[i] = y[j]
+            elif tag == 'delete':
+                del x[i]
+                c -= 1
+            elif tag == 'insert':
+                x.insert(i, y[j]) 
+                c += 1
+            xs.append(x.copy())
+        index = np.random.choice(range(len(xs)))
+        x = xs[index]
+        return x, y
 
 def rec_online_generator(data_src: str, data: list) -> list:
     # online training data generation for recurrent inference
@@ -370,26 +415,33 @@ def rec_online_generator(data_src: str, data: list) -> list:
             # generate sample
             x = [x[i] for i in range(len(x)) if i not in idxes_to_remove]
             return x, y_
-    # for Number Sequence Sorting (NSS)
-    # elif data_src == 'nss':
-    #     # for swap sort
-    #     x, y = data
-    #     x = convert_to_int(x)
-    #     y = convert_to_int(y)
-    #     xs = [x.copy()]
-    #     ys_ = []
-    #     while True:
-    #         src_idx = find_src_index_to_swap(x, y) 
-    #         tgt_idx = find_tgt_index_to_swap(x, src_idx)
-    #         ys_.append([src_idx, tgt_idx])
-    #         if src_idx == tgt_idx == -1:
-    #             break
-    #         x[src_idx], x[tgt_idx] = x[tgt_idx], x[src_idx]
-    #         xs.append(x.copy())
-    #     index = np.random.choice(range(len(xs)))
-    #     x = convert_to_str(xs[index])
-    #     y_ = convert_to_str(ys_[index])
-    #     return x, y_
+    # for Arithmetic Equation Correction (AEC)
+    elif data_src == 'aec': 
+        x, y = data
+        xs = [x.copy()]
+        ys_ = []
+        editops = levenshtein_editops_list(x, y)
+        c = 0 
+        for tag, i, j in editops: 
+            i += c
+            if tag == 'replace':
+                y_ = ['<sub>', '<pos_{}>'.format(i), y[j]]
+                x[i] = y[j]
+            elif tag == 'delete': 
+                y_ = ['<delete>', '<pos_{}>'.format(i), '<done>']
+                del x[i]
+                c -= 1
+            elif tag == 'insert': 
+                y_ = ['<insert>', '<pos_{}>'.format(i), y[j]]
+                x.insert(i, y[j]) 
+                c += 1
+            xs.append(x.copy()) 
+            ys_.append(y_)
+        ys_.append(['<done>']*3)
+        index = np.random.choice(range(len(xs)))
+        x = xs[index]
+        y_ = ys_[index]
+        return x, y_
 
 def rec_offline_generator(data_src: str, data) -> list: 
     # for Arithmetic Equation Simplification (AES) 
@@ -409,22 +461,19 @@ def rec_offline_generator(data_src: str, data) -> list:
         return data
     # for Arithmetic Equation Correction (AEC)
     elif data_src == 'aec': 
-        raise NotImplementedError
-    # for Number Sequence Sorting (NSS)
-    # elif data_src == 'nss': 
-    #     # for swap sort
-    #     x, y = data
-    #     x = convert_to_int(x)
-    #     y = convert_to_int(y)
-    #     if x == y:
-    #         y_ = [-1, -1]
-    #     else:
-    #         src_idx = find_src_index_to_swap(x, y) 
-    #         tgt_idx = find_tgt_index_to_swap(x, src_idx)
-    #         y_ = [src_idx, tgt_idx]
-    #     x = convert_to_str(x)
-    #     y_ = convert_to_str(y_)
-    #     return x, y_
+        x, y = data
+        editops = levenshtein_editops_list(x, y)
+        if len(editops) == 0:
+            y_ = ['<done>']*3
+        else:
+            tag, i, j = editops[0]
+            if tag == 'replace':
+                y_ = ['<sub>', '<pos_{}>'.format(i), y[j]]
+            elif tag == 'delete': 
+                y_ = ['<delete>', '<pos_{}>'.format(i), '<done>'] 
+            elif tag == 'insert': 
+                y_ = ['<insert>', '<pos_{}>'.format(i), y[j]] 
+        return x, y_
 
 def tag_online_generator(data_src: str, data) -> list:
     # for Arithmetic Equation Simplification (AES) 
@@ -441,7 +490,7 @@ def tag_online_generator(data_src: str, data) -> list:
             xs.append(x)
         index = np.random.choice(range(len(xs)))
         x = xs[index]
-        # convert to tagging sequences
+        # convert to a tagging sequence
         y_ = []
         x_ = x.copy()
         x_token = x_.pop(0)
@@ -494,10 +543,42 @@ def tag_online_generator(data_src: str, data) -> list:
             return x, y_
     # for Arithmetic Equation Correction (AEC)
     elif data_src == 'aec': 
-        raise NotImplementedError
-    # for Number Sequence Sorting (NSS)
-    # elif data_src == 'nss':
-    #     pass
+        # pick an intermediate step
+        x, y = data
+        xs = [x.copy()] 
+        editops = levenshtein_editops_list(x, y)
+        c = 0 
+        for tag, i, j in editops: 
+            i += c
+            if tag == 'replace':
+                x[i] = y[j]
+            elif tag == 'delete':
+                del x[i]
+                c -= 1
+            elif tag == 'insert':
+                x.insert(i, y[j]) 
+                c += 1
+            xs.append(x.copy())
+        index = np.random.choice(range(len(xs)))
+        x = xs[index]
+        # convert to a tagging sequence
+        editops = levenshtein_editops_list(x, y)
+        y_ = ['<keep>'] * len(x)
+        c = 0
+        for tag, i, j in editops:
+            i += c
+            if tag == 'replace': 
+                if y_[i] != '<keep>':
+                    y_.insert(i+1, '<sub_{}>'.format(y[j]))
+                    c += 1
+                else:
+                    y_[i] = '<sub_{}>'.format(y[j])
+            elif tag == 'delete':
+                y_[i] = '<delete>'
+            elif tag == 'insert': 
+                y_.insert(i, '<insert_{}>'.format(y[j]))
+                c += 1
+        return x, y_
 
 def tag_offline_generator(data_src: str, data) -> list:
     # for Arithmetic Equation Simplification (AES) 
@@ -527,11 +608,25 @@ def tag_offline_generator(data_src: str, data) -> list:
     # for Arithmetic Operators Insertion (AOI)
     elif data_src == 'aor': 
         return data
-    elif data_src == 'aoc':
-        raise NotImplementedError
-    # for Number Sequence Sorting (NSS)
-    # elif data_src == 'nss':
-    #     pass
+    elif data_src == 'aec': 
+        x, y = data 
+        editops = levenshtein_editops_list(x, y)
+        y_ = ['<keep>'] * len(x)
+        c = 0
+        for tag, i, j in editops:
+            i += c
+            if tag == 'replace': 
+                if y_[i] != '<keep>':
+                    y_.insert(i+1, '<sub_{}>'.format(y[j]))
+                    c += 1
+                else:
+                    y_[i] = '<sub_{}>'.format(y[j])
+            elif tag == 'delete':
+                y_[i] = '<delete>'
+            elif tag == 'insert': 
+                y_.insert(i, '<insert_{}>'.format(y[j]))
+                c += 1
+        return x, y_
 
 def data_generator(data, config):
     # for end2end
@@ -633,24 +728,26 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
         xs, x_lens = padding(xs)
     # inference function for Arithmetic Equation Correction (AEC) 
     elif config.data_src == 'aec':
-        raise NotImplementedError
-    # inference function for Number Sequence Sorting (NSS)
-    # elif config.data_src == 'nss': 
-    #     # for swap sort
-    #     xs = np.array(xs)
-    #     ys_ = np.array(ys_)
-    #     is_numeric = np.vectorize(is_int, otypes=[bool])
-    #     mask = np.logical_and(ys_ != '-1', is_numeric(ys_)).all(axis=-1)
-    #     if not mask.any():
-    #         done = True
-    #     else:
-    #         done = False
-    #         # ndarray inference
-    #         src_idxes = ys_[mask].astype(int)[:, 0] 
-    #         tgt_idxes = ys_[mask].astype(int)[:, 1]
-    #         xs[mask, src_idxes], xs[mask, tgt_idxes] = xs[mask, tgt_idxes], xs[mask, src_idxes] 
-    #     xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
-    #     xs, x_lens = padding(xs)
+        mask = (np.array(ys_) != '<done>').all(axis=-1)
+        if not mask.any():
+            done = True
+        else:
+            done = False
+            # for loop inference
+            for i in range(len(xs)):
+                x, y_ = xs[i], ys_[i]
+                if y_[1].startswith('<pos_'):
+                    idx = parse_pos(y_[1])
+                    if y_[0] == '<sub>': 
+                        x[idx] = y_[2]
+                    elif y_[0] == '<delete>':
+                        del x[idx]
+                    elif y_[0] == '<insert>':
+                        x.insert(idx, y_[2])
+                xs[i] = x
+        xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
+        xs, x_lens = padding(xs)
+
     return xs.to(config.device), x_lens.to(config.device), done
 
 def rec_infer(xs, x_lens, model, max_infer_step, 
@@ -669,22 +766,6 @@ def rec_infer(xs, x_lens, model, max_infer_step,
             xs, x_lens, done = one_step_infer(xs, ys_, 
                 src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2vocab_dict, config)
             return xs, x_lens, done
-    # elif config.data_src in ['nss']:
-    #     res = torch.ones((xs.size(0), max_infer_step), device=config.device)
-    #     for i in range(max_infer_step):
-    #         ys_ = model(xs, x_lens)
-    #         ys_ = torch.argmax(ys_, dim=2).cpu().detach().numpy() 
-    #         ys_ = [translate(y_, tgt_idx2vocab_dict)[0] for y_ in ys_]
-    #         ys_ = [ int(y_) if y_.isdigit() else np.random.randint(xs.size(1)) for y_ in ys_]
-    #         ys_ = torch.Tensor(ys_).reshape(xs.size(0), -1).long().to(config.device)
-    #         ys_ = ys_.expand(xs.shape)
-    #         idx = torch.arange(end=xs.size(1), device=config.device)
-    #         idx = idx.unsqueeze(0).expand(xs.shape)
-    #         mask = idx == ys_
-    #         res[:, i] = xs[mask]
-    #         xs = xs[~mask].reshape(xs.size(0), -1)
-    #         x_lens -= 1
-    #     return res, None, None
 
 def tag_execute(x, y_):
     p = []

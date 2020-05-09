@@ -10,13 +10,13 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.data_src = 'aor' # aes, aor, aec
-        self.method = 'e2e' # e2e, tag, rec
-        self.data_mode = 'offline' # offline, online
+        self.data_src = 'aec' # aes, aor, aec
+        self.method = 'tag' # e2e, tag, rec
+        self.data_mode = 'online' # offline, online
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
-        self.model_name = 'transformer'
+        self.model_name = 'bi_lstm_rnn_att'
         self.load_check_point = False
         self.num_size = 10 # numbers involved
         self.seq_len = 5 # input sequence length
@@ -66,7 +66,7 @@ class Config():
         # model
         self.learning_rate = 1e-4
         self.teacher_forcing_ratio = 0.5
-        self.clipping_threshold = 0.5
+        self.clipping_threshold = 2.
         # embedding
         self.embedding_size = 512
         # encoder
@@ -91,6 +91,7 @@ class E2EConfig(Config):
     def __init__(self):
         super(E2EConfig, self).__init__()
     
+
 class RecConfig(Config):
     """docstring for RecConfig"""
     def __init__(self):
@@ -102,14 +103,17 @@ class RecConfig(Config):
         elif self.data_src == 'aor':
             self.max_infer_step = self.seq_len
             self.tgt_seq_len = 3 # action, position, target operator
-        elif self.data_src == 'aec':
-            raise NotImplementedError
+        elif self.data_src == 'aec': 
+            self.max_infer_step = self.seq_len
+            self.tgt_seq_len = 3 # action, position, target token
+
 
 class TagConfig(Config):
     """docstring for TagConfig"""
     def __init__(self):
         super(TagConfig, self).__init__()
-        if self.data_src == 'aes':
+        if self.data_src == 'aes': 
+            # the max decode step depends on the input sequence
             self.tgt_seq_len = self.seq_len + self.seq_len*6
         else:
             self.tgt_seq_len = None
