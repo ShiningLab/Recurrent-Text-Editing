@@ -186,7 +186,7 @@ class TextEditor(object):
                 self.opt.step()
                 self.opt.zero_grad()
                 self.step += 1
-                break
+                # break
             # check progress
             loss = loss.item()
             xs = xs.cpu().detach().numpy() # batch_size, max_xs_seq_len
@@ -246,7 +246,7 @@ class TextEditor(object):
                 all_xs += xs
                 all_ys += ys 
                 all_ys_ += ys_
-                break
+                # break
         all_ys_ = tag_infer(all_xs, all_ys_, 
             self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict)
         # evaluation
@@ -261,7 +261,7 @@ class TextEditor(object):
             self.src_idx2vocab_dict, self.src_idx2vocab_dict, self.src_idx2vocab_dict)
         print(' src: {}\n tgt: {}\n pred: {}'.format(src, tar, pred))
         # early stopping
-        if eva_matrix.key_metric >= self.val_key_metric:
+        if eva_matrix.key_metric > self.val_key_metric:
             self.val_epoch = 0
             self.val_key_metric = eva_matrix.key_metric
             # save model
@@ -295,7 +295,7 @@ class TextEditor(object):
                 all_xs += xs
                 all_ys += ys 
                 all_ys_ += ys_
-                break
+                # break
         all_ys_ = tag_infer(all_xs, all_ys_, 
             self.src_idx2vocab_dict, self.src_vocab2idx_dict, self.tgt_idx2vocab_dict)
         eva_matrix = Evaluate(self.config, all_ys, all_ys_, self.src_idx2vocab_dict)

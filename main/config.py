@@ -11,8 +11,8 @@ class Config():
       def __init__(self): 
         # data source
         self.data_src = 'aec' # aes, aor, aec
-        self.method = 'tag' # e2e, tag, rec
-        self.data_mode = 'online' # offline, online
+        self.method = 'rec' # e2e, tag, rec
+        self.data_mode = 'offline' # offline, online
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att

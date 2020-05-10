@@ -736,11 +736,11 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
             # for loop inference
             for i in range(len(xs)):
                 x, y_ = xs[i], ys_[i]
-                if y_[1].startswith('<pos_'):
+                if y_[1].startswith('<pos_') and y_[2] in src_vocab2idx_dict:
                     idx = parse_pos(y_[1])
-                    if y_[0] == '<sub>': 
+                    if y_[0] == '<sub>' and idx in range(len(x)): 
                         x[idx] = y_[2]
-                    elif y_[0] == '<delete>':
+                    elif y_[0] == '<delete>' and idx in range(len(x)):
                         del x[idx]
                     elif y_[0] == '<insert>':
                         x.insert(idx, y_[2])
