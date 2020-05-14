@@ -91,20 +91,18 @@ class ArithmeticEquationCorrection():
             tk_y = f(tk_y, idx)
         return tk_y
         
-    
-    def random_transform(self, ys): 
+    def random_transform(self, ys, num_errors): 
         xs = []
         for y in ys:
             tk_y = y.split() 
-            # [0, (len-1/2)]
-            y_len = len(tk_y)-1 
-            num_idxes = np.random.choice(range(int(y_len/2)+1))
+            y_len = len(tk_y) - 1
+            num_idxes = np.random.choice(range(num_errors+1))
             idxes = sorted(np.random.choice(range(y_len), num_idxes, False))
             tk_x = self.transform(tk_y, idxes)
             xs.append(' '.join([x for x in tk_x if len(x)>0]))
         return xs
     
-    def generate(self, seq_len, data_size):
+    def generate(self, seq_len, data_size, num_errors):
         # input sequences, output sequences
         xs, ys = [], []
         self.value_dict = self.gen_base_dict()
@@ -112,7 +110,7 @@ class ArithmeticEquationCorrection():
             seq_len=seq_len, 
             data_size=data_size)
         ys = self.gen_equation_list()
-        xs = self.random_transform(ys)
+        xs = self.random_transform(ys, num_errors)
         
         return xs, ys
 
@@ -167,7 +165,11 @@ def main():
     parser.add_argument('--seq_len', 
         type=int, 
         required=True, 
-        help='define the sequence length of inputs')
+        help='define the sequence length of inputs') 
+    parser.add_argument('--error_rate', 
+        type=float, 
+        required=True, 
+        help='define the number of errors given the sequence length')
     parser.add_argument('--data_size', 
         type=int, 
         required=True, 
@@ -175,10 +177,13 @@ def main():
     args = parser.parse_args()
     # data generation 
     operators = ['+', '-', '*', '/'] #TODO
+    num_errors = int((2*args.seq_len-1)*args.error_rate)
+    print('num_errors:', num_errors)
     aec = ArithmeticEquationCorrection(operators, args.num_size) 
     xs, ys = aec.generate(
         seq_len=args.seq_len-1, 
-        data_size=args.data_size)
+        data_size=args.data_size, 
+        num_errors=num_errors)
     trainset, valset, testset = train_test_split(xs, ys)
     save_dataset(trainset, valset, testset, args)
 

@@ -10,16 +10,18 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.data_src = 'aec' # aes, aor, aec
+        self.data_src = 'aes' # aes, aor, aec
         self.method = 'rec' # e2e, tag, rec
-        self.data_mode = 'offline' # offline, online
+        self.data_mode = 'online' # offline, online
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
         self.model_name = 'bi_lstm_rnn_att'
         self.load_check_point = False
-        self.num_size = 10 # numbers involved
+        self.num_size = 100 # numbers involved
         self.seq_len = 5 # input sequence length
+        self.error_rate = 0.5 # 
+        self.num_errors = int((2*self.seq_len-1)*self.error_rate) #  the numebr of errors for AEC
         self.data_size = 10000 # total data size
         # I/O directory
         # current path

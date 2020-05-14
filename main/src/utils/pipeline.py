@@ -260,6 +260,7 @@ class ArithmeticEquationCorrection():
     def __init__(self, config):
         super().__init__()
         self.operators = config.operators
+        self.num_errors = config.num_errors
         self.pos_digits = np.arange(2, config.num_size+2).tolist()
         self.neg_digits = np.arange(-config.num_size, -1).tolist()
         self.digits = self.pos_digits + self.neg_digits
@@ -284,16 +285,13 @@ class ArithmeticEquationCorrection():
         return tk_y
         
     def random_transform(self, ys): 
-        ys = copy.deepcopy(ys)
         xs = []
         for y in ys:
-            # [0, (len-1/2)]
-            y_len = len(y)-1 
-            num_idxes = np.random.choice(range(int(y_len/2)+1))
-            idxes = sorted(np.random.choice(range(y_len), num_idxes, False)) 
-            x = self.transform(y, idxes) 
-            x = ' '.join([i for i in x if len(i)>0]).split()
-            xs.append(x) 
+            y_len = len(y) - 1
+            num_idxes = np.random.choice(range(self.num_errors+1))
+            idxes = sorted(np.random.choice(range(y_len), num_idxes, False))
+            x = self.transform(y, idxes)
+            xs.append(' '.join([i for i in x if len(i)>0]).split())
         return xs
 
 
@@ -360,20 +358,23 @@ def e2e_online_generator(data_src: str, data) -> list:
         x, y = data
         xs = [x.copy()] 
         editops = levenshtein_editops_list(x, y)
-        c = 0 
-        for tag, i, j in editops: 
-            i += c
-            if tag == 'replace':
-                x[i] = y[j]
-            elif tag == 'delete':
-                del x[i]
-                c -= 1
-            elif tag == 'insert':
-                x.insert(i, y[j]) 
-                c += 1
-            xs.append(x.copy())
-        index = np.random.choice(range(len(xs)))
-        x = xs[index]
+        if len(editops) == 0: 
+            return x, y
+        else:
+            c = 0 
+            for tag, i, j in editops: 
+                i += c
+                if tag == 'replace':
+                    x[i] = y[j]
+                elif tag == 'delete':
+                    del x[i]
+                    c -= 1
+                elif tag == 'insert':
+                    x.insert(i, y[j]) 
+                    c += 1
+                xs.append(x.copy())
+            index = np.random.choice(range(len(xs)-1))
+            x = xs[index]
         return x, y
 
 def rec_online_generator(data_src: str, data: list) -> list:
@@ -421,26 +422,31 @@ def rec_online_generator(data_src: str, data: list) -> list:
         xs = [x.copy()]
         ys_ = []
         editops = levenshtein_editops_list(x, y)
-        c = 0 
-        for tag, i, j in editops: 
-            i += c
-            if tag == 'replace':
-                y_ = ['<sub>', '<pos_{}>'.format(i), y[j]]
-                x[i] = y[j]
-            elif tag == 'delete': 
-                y_ = ['<delete>', '<pos_{}>'.format(i), '<done>']
-                del x[i]
-                c -= 1
-            elif tag == 'insert': 
-                y_ = ['<insert>', '<pos_{}>'.format(i), y[j]]
-                x.insert(i, y[j]) 
-                c += 1
-            xs.append(x.copy()) 
-            ys_.append(y_)
-        ys_.append(['<done>']*3)
-        index = np.random.choice(range(len(xs)))
-        x = xs[index]
-        y_ = ys_[index]
+        if len(editops) == 0: 
+            y_ = ['<done>']*3 
+            return x, y_ 
+        else:
+            c = 0 
+            for tag, i, j in editops: 
+                i += c
+                if tag == 'replace':
+                    y_ = ['<sub>', '<pos_{}>'.format(i), y[j]]
+                    x[i] = y[j]
+                elif tag == 'delete': 
+                    # y_ = ['<delete>', '<pos_{}>'.format(i), '<done>'] 
+                    y_ = ['<delete>', '<pos_{}>'.format(i), '<pos_{}>'.format(i)]
+                    del x[i]
+                    c -= 1
+                elif tag == 'insert': 
+                    y_ = ['<insert>', '<pos_{}>'.format(i), y[j]]
+                    x.insert(i, y[j]) 
+                    c += 1
+                xs.append(x.copy()) 
+                ys_.append(y_)
+            # ys_.append(['<done>']*3)
+            index = np.random.choice(range(len(xs)-1))
+            x = xs[index]
+            y_ = ys_[index]
         return x, y_
 
 def rec_offline_generator(data_src: str, data) -> list: 
@@ -470,7 +476,8 @@ def rec_offline_generator(data_src: str, data) -> list:
             if tag == 'replace':
                 y_ = ['<sub>', '<pos_{}>'.format(i), y[j]]
             elif tag == 'delete': 
-                y_ = ['<delete>', '<pos_{}>'.format(i), '<done>'] 
+                # y_ = ['<delete>', '<pos_{}>'.format(i), '<done>'] 
+                y_ = ['<delete>', '<pos_{}>'.format(i), '<pos_{}>'.format(i)] 
             elif tag == 'insert': 
                 y_ = ['<insert>', '<pos_{}>'.format(i), y[j]] 
         return x, y_
@@ -547,38 +554,41 @@ def tag_online_generator(data_src: str, data) -> list:
         x, y = data
         xs = [x.copy()] 
         editops = levenshtein_editops_list(x, y)
-        c = 0 
-        for tag, i, j in editops: 
-            i += c
-            if tag == 'replace':
-                x[i] = y[j]
-            elif tag == 'delete':
-                del x[i]
-                c -= 1
-            elif tag == 'insert':
-                x.insert(i, y[j]) 
-                c += 1
-            xs.append(x.copy())
-        index = np.random.choice(range(len(xs)))
-        x = xs[index]
-        # convert to a tagging sequence
-        editops = levenshtein_editops_list(x, y)
-        y_ = ['<keep>'] * len(x)
-        c = 0
-        for tag, i, j in editops:
-            i += c
-            if tag == 'replace': 
-                if y_[i] != '<keep>':
-                    y_.insert(i+1, '<sub_{}>'.format(y[j]))
+        if len(editops) == 0: 
+            return x, ['<keep>'] * len(x) 
+        else:
+            c = 0 
+            for tag, i, j in editops: 
+                i += c
+                if tag == 'replace':
+                    x[i] = y[j]
+                elif tag == 'delete':
+                    del x[i]
+                    c -= 1
+                elif tag == 'insert':
+                    x.insert(i, y[j]) 
                     c += 1
-                else:
-                    y_[i] = '<sub_{}>'.format(y[j])
-            elif tag == 'delete':
-                y_[i] = '<delete>'
-            elif tag == 'insert': 
-                y_.insert(i, '<insert_{}>'.format(y[j]))
-                c += 1
-        return x, y_
+                xs.append(x.copy())
+            index = np.random.choice(range(len(xs)-1))
+            x = xs[index]
+            # convert to a tagging sequence
+            editops = levenshtein_editops_list(x, y)
+            y_ = ['<keep>'] * len(x)
+            c = 0
+            for tag, i, j in editops:
+                i += c
+                if tag == 'replace': 
+                    if y_[i] != '<keep>':
+                        y_.insert(i+1, '<sub_{}>'.format(y[j]))
+                        c += 1
+                    else:
+                        y_[i] = '<sub_{}>'.format(y[j])
+                elif tag == 'delete':
+                    y_[i] = '<delete>'
+                elif tag == 'insert': 
+                    y_.insert(i, '<insert_{}>'.format(y[j]))
+                    c += 1
+            return x, y_
 
 def tag_offline_generator(data_src: str, data) -> list:
     # for Arithmetic Equation Simplification (AES) 
@@ -697,54 +707,48 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
     # convert index to vocab
     xs = [translate(x, src_idx2vocab_dict) for x in xs]
     ys_ = [translate(y_, tgt_idx2vocab_dict) for y_ in ys_]
-    # inference function for Arithmetic Operators Restoration (AOR)
-    if config.data_src == 'aor':
-        mask = (np.array(ys_) != '<done>').all(axis=-1)
-        if not mask.any():
-            done = True
-        else:
-            done = False
-            # for loop inference
-            for x, y_ in zip(xs, ys_): 
+    # mask completed sequences
+    mask = ~(np.array(ys_) == '<done>').all(axis=-1)
+    if not mask.any():
+        done = True
+    else:
+        done = False
+        idxes = np.arange(len(xs))[mask]
+        # inference function for Arithmetic Operators Restoration (AOR) 
+        if config.data_src == 'aor': 
+            # for loop inference 
+            for i in idxes: 
+                x, y_ = xs[i], ys_[i]
                 if y_[0].startswith('<pos_') and y_[1] in set(['+', '-', '*', '/', '==']): 
                     x.insert(parse_pos(y_[0]), y_[1]) 
-        xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
-        xs, x_lens = padding(xs, config.seq_len*2)
-    # inference function for Arithmetic Equation Simplification (AES)
-    elif config.data_src == 'aes': 
-        mask = (np.array(ys_) != '<done>').all(axis=-1)
-        if not mask.any():
-            done = True
-        else:
-            done = False
+        # inference function for Arithmetic Equation Simplification (AES)
+        elif config.data_src == 'aes': 
             # for loop inference
-            for i in range(len(xs)):
+            for i in idxes: 
                 x, y_ = xs[i], ys_[i]
                 if y_[0].startswith('<pos_') and y_[1].startswith('<pos_') and y_[2].isdigit():
                     left_idx = parse_pos(y_[0])
                     right_idx = parse_pos(y_[1])
                     xs[i] = x[:left_idx] + [y_[2]] + x[right_idx+1:]
-        xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
-        xs, x_lens = padding(xs)
-    # inference function for Arithmetic Equation Correction (AEC) 
-    elif config.data_src == 'aec':
-        mask = (np.array(ys_) != '<done>').all(axis=-1)
-        if not mask.any():
-            done = True
-        else:
-            done = False
+        # inference function for Arithmetic Equation Correction (AEC) 
+        elif config.data_src == 'aec': 
             # for loop inference
-            for i in range(len(xs)):
+            for i in idxes: 
                 x, y_ = xs[i], ys_[i]
-                if y_[1].startswith('<pos_') and y_[2] in src_vocab2idx_dict:
-                    idx = parse_pos(y_[1])
-                    if y_[0] == '<sub>' and idx in range(len(x)): 
-                        x[idx] = y_[2]
-                    elif y_[0] == '<delete>' and idx in range(len(x)):
-                        del x[idx]
-                    elif y_[0] == '<insert>':
-                        x.insert(idx, y_[2])
+                if y_[1].startswith('<pos_'):
+                    pos = parse_pos(y_[1])
+                    if y_[0] == '<sub>' and pos in range(len(x)) and y_[2] in src_vocab2idx_dict: 
+                        x[pos] = y_[2]
+                    elif y_[0] == '<delete>' and pos in range(len(x)):
+                        del x[pos]
+                    elif y_[0] == '<insert>' and y_[2] in src_vocab2idx_dict:
+                        x.insert(pos, y_[2])
                 xs[i] = x
+            
+    if config.data_src == 'aor':
+        xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
+        xs, x_lens = padding(xs, config.seq_len*2)
+    else:
         xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
         xs, x_lens = padding(xs)
 

@@ -43,26 +43,30 @@ def gen_rec_pair(x: list, y: list) -> list:
     xs = [x.copy()]
     ys_ = []
     editops = levenshtein_editops_list(x, y)
-    c = 0 
-    for tag, i, j in editops: 
-        i += c
-        if tag == 'replace':
-            y_ = ['<sub>', '<pos_{}>'.format(i), y[j]]
-            x[i] = y[j]
-        elif tag == 'delete': 
-            y_ = ['<delete>', '<pos_{}>'.format(i), '<done>']
-            del x[i]
-            c -= 1
-        elif tag == 'insert': 
-            y_ = ['<insert>', '<pos_{}>'.format(i), y[j]]
-            x.insert(i, y[j]) 
-            c += 1
-        xs.append(x.copy()) 
-        ys_.append(y_)
-    ys_.append(['<done>']*3)
-    index = np.random.choice(range(len(xs)))
-    x = xs[index]
-    y_ = ys_[index]
+    if len(editops) == 0: 
+        y_ = ['<done>']*3 
+    else:
+        c = 0 
+        for tag, i, j in editops: 
+            i += c
+            if tag == 'replace':
+                y_ = ['<sub>', '<pos_{}>'.format(i), y[j]]
+                x[i] = y[j]
+            elif tag == 'delete': 
+                # y_ = ['<delete>', '<pos_{}>'.format(i), '<done>']
+                y_ = ['<delete>', '<pos_{}>'.format(i), '<pos_{}>'.format(i)]
+                del x[i]
+                c -= 1
+            elif tag == 'insert': 
+                y_ = ['<insert>', '<pos_{}>'.format(i), y[j]]
+                x.insert(i, y[j]) 
+                c += 1
+            xs.append(x.copy()) 
+            ys_.append(y_)
+        # ys_.append(['<done>']*3)
+        index = np.random.choice(range(len(xs)-1))
+        x = xs[index]
+        y_ = ys_[index]
     return x, y_, y
 
 def gen_tag_pair(x, y):

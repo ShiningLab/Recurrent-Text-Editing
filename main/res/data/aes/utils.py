@@ -23,6 +23,26 @@ def save_json(path: str, data_dict: dict) -> None:
 def white_space_tokenizer(str_seq_list: list) -> list:
     return [str_seq.split(' ') for str_seq in str_seq_list]
 
+def gen_rec_pair(x, y): 
+    x = x.split()
+    y = y.split()
+    xs = [x.copy()]
+    ys_ = []
+    num_left = len([i for i in x if i == '('])
+    for i in range(num_left):
+        left_idx = x.index('(') 
+        right_idx = x.index(')') 
+        v = y[left_idx] 
+        ys_.append(['<pos_{}>'.format(left_idx), '<pos_{}>'.format(right_idx), v])
+        x = x[:left_idx] + [v] + x[right_idx+1:]
+        xs.append(x)
+    ys_.append(['<done>']*3)
+    index = np.random.choice(range(len(xs)))
+    x = xs[index]
+    y_ = ys_[index]
+    return x, y_, y
+    
+
 def gen_tag_pair(x, y):
     x_ = x.split()
     y = y.split()

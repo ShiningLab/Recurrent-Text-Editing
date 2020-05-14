@@ -58,9 +58,7 @@ class RecurrentDataPreprocess(object):
         print('test sample size', len(raw_test_xs))
         print('test label size', len(raw_test_ys))
         # train
-        # white space tokenization
-        train_ys = white_space_tokenizer(raw_train_ys)
-        train_xs = white_space_tokenizer(raw_train_xs)
+        train_xs, train_ys_, train_ys = zip(*[gen_rec_pair(x, y) for x, y in zip(raw_train_xs, raw_train_ys)])
         # source vocabulary frequency distribution
         counter = Counter()
         for x in train_xs:
@@ -72,11 +70,13 @@ class RecurrentDataPreprocess(object):
         i = len(src_vocab2idx_dict)
         for token in src_vocab_list:
             src_vocab2idx_dict[token] = i
-            i += 1
+            i += 1 
+        # target vocabulary frequency distribution
+        counter = Counter()
+        for y_ in train_ys_:
+            counter.update(y_) 
+        tgt_vocab_list = sorted(counter.keys())
         # target vocabulary dictionary
-        tgt_vocab_list = np.arange(2, self.num_size+2).astype('str').tolist()
-        tgt_vocab_list += ['<pos_{}>'.format(i) for i in range(self.seq_len*7)]
-        tgt_vocab_list += ['<done>']
         tgt_vocab2idx_dict = dict()
         tgt_vocab2idx_dict['<pad>'] = 0 # to pad sequence length
         tgt_vocab2idx_dict['<s>'] = 1 # to mark the start of a sequence
