@@ -22,8 +22,8 @@ def load_txt(path: str) -> list:
 
 def parse_log(in_lines):
     out_lines = []
-    keys = ['Epoch', 'Step', 'Loss', 'Equation Accuracy', 'Token Accuracy', 'Sequence Accuracy']
-    items = ['Epoch:', 'Step:', 'Loss:', 'Equation Acc:', 'Token Acc:', 'Seq Acc:']
+    keys = ['Epoch', 'Step', 'Equation Accuracy', 'Token Accuracy', 'Sequence Accuracy']
+    items = ['Epoch', 'Step', 'Equation Acc:', 'Token Acc:', 'Seq Acc:']
     for line in in_lines:
         line_dict = dict()
         for i, key in zip(items, keys):

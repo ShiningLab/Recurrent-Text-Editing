@@ -10,19 +10,18 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.data_src = 'aes' # aes, aor, aec
-        self.method = 'rec' # e2e, tag, rec
-        self.data_mode = 'online' # offline, online
+        self.data_src = 'aor' # aes, aor, aec
+        self.method = 'e2e' # e2e, tag, rec
+        self.data_mode = 'offline' # offline, online
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
         self.model_name = 'bi_lstm_rnn_att'
         self.load_check_point = False
-        self.num_size = 100 # numbers involved
+        self.num_size = 50 # numbers involved
         self.seq_len = 5 # input sequence length
-        self.error_rate = 0.5 # 
-        self.num_errors = int((2*self.seq_len-1)*self.error_rate) #  the numebr of errors for AEC
         self.data_size = 10000 # total data size
+        self.num_errors = 3 #  the numebr of errors for AEC
         # I/O directory
         # current path
         self.CURR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -68,7 +67,7 @@ class Config():
         # model
         self.learning_rate = 1e-4
         self.teacher_forcing_ratio = 0.5
-        self.clipping_threshold = 2.
+        self.clipping_threshold = 5.
         # embedding
         self.embedding_size = 512
         # encoder
@@ -101,7 +100,7 @@ class RecConfig(Config):
         # define the max inference step
         if self.data_src == 'aes':
             self.max_infer_step = self.seq_len
-            self.tgt_seq_len = 3 # start_idx, end_idx, target value
+            self.tgt_seq_len = 3 # start_idx, end_idx, target integer
         elif self.data_src == 'aor':
             self.max_infer_step = self.seq_len
             self.tgt_seq_len = 3 # action, position, target operator

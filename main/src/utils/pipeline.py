@@ -99,22 +99,6 @@ def pick_model(config, method):
         elif method == 'rec':
             return bi_lstm_rnn_att.RecModelGraph(config).to(config.device)
 
-    # elif config.model_name == 'gru_ptr':
-    #     if method == 'end2end':
-    #         return gru_ptr.End2EndModelGraph(config).to(config.device)
-
-    # elif config.model_name == 'lstm_ptr':
-    #     if method == 'end2end':
-    #         return lstm_ptr.End2EndModelGraph(config).to(config.device)
-
-    # elif config.model_name == 'bi_gru_ptr':
-    #     if method == 'end2end':
-    #         return bi_gru_ptr.End2EndModelGraph(config).to(config.device)
-
-    # elif config.model_name == 'bi_lstm_ptr':
-    #     if method == 'end2end':
-    #         return bi_lstm_ptr.End2EndModelGraph(config).to(config.device)
-
     else:
         raise ValueError('Wrong model to pick.')
 
@@ -373,7 +357,7 @@ def e2e_online_generator(data_src: str, data) -> list:
                     x.insert(i, y[j]) 
                     c += 1
                 xs.append(x.copy())
-            index = np.random.choice(range(len(xs)-1))
+            index = np.random.choice(range(len(xs)))
             x = xs[index]
         return x, y
 
@@ -443,8 +427,8 @@ def rec_online_generator(data_src: str, data: list) -> list:
                     c += 1
                 xs.append(x.copy()) 
                 ys_.append(y_)
-            # ys_.append(['<done>']*3)
-            index = np.random.choice(range(len(xs)-1))
+            ys_.append(['<done>']*3)
+            index = np.random.choice(range(len(xs)))
             x = xs[index]
             y_ = ys_[index]
         return x, y_
@@ -569,7 +553,7 @@ def tag_online_generator(data_src: str, data) -> list:
                     x.insert(i, y[j]) 
                     c += 1
                 xs.append(x.copy())
-            index = np.random.choice(range(len(xs)-1))
+            index = np.random.choice(range(len(xs)))
             x = xs[index]
             # convert to a tagging sequence
             editops = levenshtein_editops_list(x, y)

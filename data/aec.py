@@ -91,18 +91,18 @@ class ArithmeticEquationCorrection():
             tk_y = f(tk_y, idx)
         return tk_y
         
-    def random_transform(self, ys, num_errors): 
+    def random_transform(self, ys): 
         xs = []
         for y in ys:
             tk_y = y.split() 
             y_len = len(tk_y) - 1
-            num_idxes = np.random.choice(range(num_errors+1))
+            num_idxes = np.random.choice(range(3+1)) # number of errors + none error
             idxes = sorted(np.random.choice(range(y_len), num_idxes, False))
             tk_x = self.transform(tk_y, idxes)
             xs.append(' '.join([x for x in tk_x if len(x)>0]))
         return xs
     
-    def generate(self, seq_len, data_size, num_errors):
+    def generate(self, seq_len, data_size):
         # input sequences, output sequences
         xs, ys = [], []
         self.value_dict = self.gen_base_dict()
@@ -110,7 +110,7 @@ class ArithmeticEquationCorrection():
             seq_len=seq_len, 
             data_size=data_size)
         ys = self.gen_equation_list()
-        xs = self.random_transform(ys, num_errors)
+        xs = self.random_transform(ys)
         
         return xs, ys
 
@@ -120,8 +120,8 @@ def train_test_split(xs, ys):
     dataset = np.array([(x, y) for x, y in zip(xs, ys)])
     data_size = dataset.shape[0]
     indices = np.random.permutation(data_size)
-    train_size = int(0.7*data_size)
-    val_size = int(0.15*data_size)
+    train_size = int(0.7*data_size) # 70% for training
+    val_size = int(0.15*data_size) # two 15% for validation and testing
     test_size = data_size - train_size - val_size
     train_idxes = indices[:train_size]
     val_idxes = indices[train_size: train_size+val_size]
@@ -166,24 +166,17 @@ def main():
         type=int, 
         required=True, 
         help='define the sequence length of inputs') 
-    parser.add_argument('--error_rate', 
-        type=float, 
-        required=True, 
-        help='define the number of errors given the sequence length')
     parser.add_argument('--data_size', 
         type=int, 
         required=True, 
         help='define the total data size')
     args = parser.parse_args()
     # data generation 
-    operators = ['+', '-', '*', '/'] #TODO
-    num_errors = int((2*args.seq_len-1)*args.error_rate)
-    print('num_errors:', num_errors)
+    operators = ['+', '-', '*', '/'] 
     aec = ArithmeticEquationCorrection(operators, args.num_size) 
     xs, ys = aec.generate(
         seq_len=args.seq_len-1, 
-        data_size=args.data_size, 
-        num_errors=num_errors)
+        data_size=args.data_size)
     trainset, valset, testset = train_test_split(xs, ys)
     save_dataset(trainset, valset, testset, args)
 
