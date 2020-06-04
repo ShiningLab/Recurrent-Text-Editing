@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-#public
+# dependency
+# public
 import torch
 torch.manual_seed(0)
 from torch.utils import data as torch_data
@@ -204,8 +205,8 @@ class ArithmeticEquationSimplification():
     def __init__(self, config):
         super().__init__()
         self.operators = config.operators
-        self.pos_digits = np.arange(2, config.num_size+2).tolist()
-        self.neg_digits = np.arange(-config.num_size, -1).tolist()
+        self.pos_digits = np.arange(2, config.N+2).tolist()
+        self.neg_digits = np.arange(-config.N, -1).tolist()
         self.digits = self.pos_digits + self.neg_digits
         self.base_dict = self.gen_base_dict()
 
@@ -245,8 +246,8 @@ class ArithmeticEquationCorrection():
         super().__init__()
         self.operators = config.operators
         self.num_errors = config.num_errors
-        self.pos_digits = np.arange(2, config.num_size+2).tolist()
-        self.neg_digits = np.arange(-config.num_size, -1).tolist()
+        self.pos_digits = np.arange(2, config.N+2).tolist()
+        self.neg_digits = np.arange(-config.N, -1).tolist()
         self.digits = self.pos_digits + self.neg_digits
         
         def delete(tk_y, idx): 
@@ -731,7 +732,7 @@ def one_step_infer(xs, ys_, src_idx2vocab_dict, src_vocab2idx_dict, tgt_idx2voca
             
     if config.data_src == 'aor':
         xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
-        xs, x_lens = padding(xs, config.seq_len*2)
+        xs, x_lens = padding(xs, config.L*2)
     else:
         xs = [torch.Tensor(translate(x, src_vocab2idx_dict)) for x in xs]
         xs, x_lens = padding(xs)

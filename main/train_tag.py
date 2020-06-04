@@ -4,6 +4,7 @@
 __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
+# dependency
 # public
 import torch
 torch.manual_seed(0)
@@ -75,7 +76,7 @@ class TextEditor(object):
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config)
         if self.config.data_mode == 'online' and self.config.data_src == 'aor':
-            xs, x_lens = padding(xs, self.config.seq_len*2+1)
+            xs, x_lens = padding(xs, self.config.L*2+1)
         else:
             xs, x_lens = padding(xs)
         ys, _ = padding(ys)
@@ -88,9 +89,8 @@ class TextEditor(object):
         xs, ys = zip(*data)
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.src_vocab2idx_dict, self.config, False)
-        # TODO: why padding leads to an incorrect prediction
         if self.config.data_mode == 'online' and self.config.data_src == 'aor':
-            xs, x_lens = padding(xs, self.config.seq_len*2+1)
+            xs, x_lens = padding(xs, self.config.L*2+1)
         else:
             xs, x_lens = padding(xs)
         ys, _ = padding(ys)

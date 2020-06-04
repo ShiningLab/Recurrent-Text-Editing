@@ -4,6 +4,7 @@
 __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
+# dependency
 # public
 import torch
 torch.manual_seed(0)
@@ -75,7 +76,7 @@ class TextEditor(object):
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config)
         if self.config.data_mode == 'online' and self.config.data_src == 'aor':
-                xs, x_lens = padding(xs, self.config.seq_len*2+1)
+                xs, x_lens = padding(xs, self.config.L*2+1)
         else:
             xs, x_lens = padding(xs)
         ys, _ = padding(ys)
@@ -90,7 +91,7 @@ class TextEditor(object):
         xs, ys = preprocess(
             xs, ys, self.src_vocab2idx_dict, self.tgt_vocab2idx_dict, self.config)
         if self.config.data_mode == 'online' and self.config.data_src == 'aor':
-                xs, x_lens = padding(xs, self.config.seq_len*2+1)
+                xs, x_lens = padding(xs, self.config.L*2+1)
         else:
             xs, x_lens = padding(xs)
         ys, _ = padding(ys)
@@ -207,7 +208,6 @@ class TextEditor(object):
             # # test
             self.test()
             # early stopping on the basis of validation result
-            # if self.pre_val_metric >= self.cur_val_metric >= 0. or self.finished:
             if self.val_epoch >= self.config.val_win_size:
                 # update flag
                 self.finished = True

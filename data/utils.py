@@ -4,7 +4,6 @@
 __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
-
 # helper functions
 def save_txt(path: str, line_list:list) -> None:
     with open(path, 'w', encoding='utf-8') as f: 

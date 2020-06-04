@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-__author__ = 'Shining'
-__email__ = 'mrshininnnnn@gmail.com'
-
-
 # public
 import torch
 import torch.nn as nn

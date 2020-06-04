@@ -1,13 +1,11 @@
-# Recursive-Text-Editing
-This repository is for the research on recursive methods to solve text editing tasks.
+# Recurrent-Text-Editing
 
+This repository is for the paper *Recurrent Inference in Text Editing*.
 
 ## Methods
-+ End2End - Done
-+ End2End with Copy Attention
++ End2end
 + Tagging
-+ Recursion - Done
-
++ Recurrence
 
 ## Models
 + Naive GRU RNN
@@ -15,17 +13,33 @@ This repository is for the research on recursive methods to solve text editing t
 + Bi-directional GRU RNN
 + Bi-directional LSTM RNN
 + Bi-directional GRU RNN with Attention
-+ Bi-directional LSTM RNN with Attention - Done
++ Bi-directional LSTM RNN with Attention
 + Transformer
-+ Reformer
-
 
 ## Data
-+ Arithmetic Operators Insertion (AOI) - Done
-+ Punctuation Restoration for Automatic Speech Recognition (ASR)
++ Arithmetic Operators Restoration (AOR)
++ Arithmetic Equation Simplification (AES)
++ Arithmetic Equation Correction (AEC)
 
+## Directory
++ **data** - for data generation
++ **main** - for training 
++ **exp_log** - validation and testing performance during training for experiments in the original work
+```
+code/
+├── README.md
+├── data
+├── main
+├── exp_log
+└── reference
+```
+
+## Process
+1. Generate raw datasets under **code/data/**
+2. Copy raw datasets from **code/data/** to **code/main/res/data/**
+3. Pre-process datasets under **code/main/res/data/**
+4. Start training under **code/main/**
 
 ## Authors
 * **Ning Shi** - mrshininnnnn@gmail.com
-* **Haotian Zhang**
 * **Ziheng Zeng**

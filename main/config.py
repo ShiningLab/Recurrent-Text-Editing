@@ -4,30 +4,33 @@
 __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
+# dependency
+# public
 import os
+
 
 class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.data_src = 'aor' # aes, aor, aec
-        self.method = 'e2e' # e2e, tag, rec
-        self.data_mode = 'offline' # offline, online
+        self.data_src = 'aes' # aor, aes, aec
+        self.method = 'tag' # e2e, tag, rec
+        self.data_mode = 'online' # offline, online
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
         self.model_name = 'bi_lstm_rnn_att'
         self.load_check_point = False
-        self.num_size = 50 # numbers involved
-        self.seq_len = 5 # input sequence length
-        self.data_size = 10000 # total data size
+        self.N = 100 # numbers involved
+        self.L = 5 # input sequence length
+        self.D = 10000 # total data size
         self.num_errors = 3 #  the numebr of errors for AEC
         # I/O directory
         # current path
         self.CURR_PATH = os.path.dirname(os.path.realpath(__file__))
         # data task patdh
-        self.TASK_PATH = os.path.join('num_size_{}'.format(self.num_size), 
-            'seq_len_{}'.format(self.seq_len), 'data_size_{}'.format(self.data_size))
+        self.TASK_PATH = os.path.join('{}N'.format(self.N), 
+            '{}L'.format(self.L), '{}D'.format(self.D))
         # data dictionary in json file
         self.DATA_PATH = os.path.join(self.CURR_PATH, 'res/data/', 
             self.data_src, self.method, self.TASK_PATH, 'data.json')
@@ -99,13 +102,13 @@ class RecConfig(Config):
         super(RecConfig, self).__init__()
         # define the max inference step
         if self.data_src == 'aes':
-            self.max_infer_step = self.seq_len
+            self.max_infer_step = self.L
             self.tgt_seq_len = 3 # start_idx, end_idx, target integer
         elif self.data_src == 'aor':
-            self.max_infer_step = self.seq_len
+            self.max_infer_step = self.L
             self.tgt_seq_len = 3 # action, position, target operator
         elif self.data_src == 'aec': 
-            self.max_infer_step = self.seq_len
+            self.max_infer_step = self.L
             self.tgt_seq_len = 3 # action, position, target token
 
 
@@ -115,6 +118,6 @@ class TagConfig(Config):
         super(TagConfig, self).__init__()
         if self.data_src == 'aes': 
             # the max decode step depends on the input sequence
-            self.tgt_seq_len = self.seq_len + self.seq_len*6
+            self.tgt_seq_len = self.L + self.L*6
         else:
             self.tgt_seq_len = None

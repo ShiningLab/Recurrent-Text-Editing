@@ -63,8 +63,8 @@ def gen_rec_pair(x: list, y: list) -> list:
                 c += 1
             xs.append(x.copy()) 
             ys_.append(y_)
-        # ys_.append(['<done>']*3)
-        index = np.random.choice(range(len(xs)-1))
+        ys_.append(['<done>']*3)
+        index = np.random.choice(range(len(xs)))
         x = xs[index]
         y_ = ys_[index]
     return x, y_, y

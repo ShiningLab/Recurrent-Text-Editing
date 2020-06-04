@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
-__author__ = 'Shining'
-__email__ = 'ning.shi@learnable.ai'
-
+# dependency
+# public
 import numpy as np
 
 class Evaluate():

@@ -1,3 +1,5 @@
+tips.txt
+*.ipynb
 *.zip
 *.icloud
 archive/
@@ -5,7 +7,6 @@ archive/
 raw/
 *.json
 *.png
-*.txt
 *.pt
 .DS_Store
 # Byte-compiled / optimized / DLL files

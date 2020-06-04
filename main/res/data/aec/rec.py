@@ -5,6 +5,7 @@ __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
 
+# dependency
 # public
 import os
 import argparse
@@ -16,12 +17,12 @@ from utils import *
 
 class RecurrentDataPreprocess(object):
     """docstring for RecurrentDataPreprocess"""
-    def __init__(self, num_size, seq_len, data_size):
+    def __init__(self, N, L, D):
         super(RecurrentDataPreprocess, self).__init__()
         self.method = 'rec'
-        self.num_size = num_size
-        self.seq_len = seq_len
-        self.data_size = data_size
+        self.N = N
+        self.L = L
+        self.D = D
         self.init_paths()
         self.data_preprocess()
         self.save()
@@ -31,15 +32,15 @@ class RecurrentDataPreprocess(object):
         indir = 'aec'
         self.indir = os.path.join(
             indir, 
-            'num_size_{}'.format(self.num_size), 
-            'seq_len_{}'.format(self.seq_len), 
-            'data_size_{}'.format(self.data_size))
+            '{}N'.format(self.N), 
+            '{}L'.format(self.L), 
+            '{}D'.format(self.D))
         # save path
         self.outdir = os.path.join(
             self.method, 
-            'num_size_{}'.format(self.num_size), 
-            'seq_len_{}'.format(self.seq_len), 
-            'data_size_{}'.format(self.data_size))
+            '{}N'.format(self.N), 
+            '{}L'.format(self.L), 
+            '{}D'.format(self.D))
         if not os.path.exists(self.outdir): os.makedirs(self.outdir)
 
     def data_preprocess(self):
@@ -76,7 +77,7 @@ class RecurrentDataPreprocess(object):
         for y_ in train_ys_:
             counter.update(y_)
         tgt_vocab_list = list(counter.keys())
-        for i in range(self.seq_len*2): 
+        for i in range(self.L*2): 
             if '<pos_{}>'.format(i) not in tgt_vocab_list:
                 tgt_vocab_list.append('<pos_{}>'.format(i))
         tgt_vocab_list.sort()
@@ -126,26 +127,28 @@ class RecurrentDataPreprocess(object):
         print('Processed Data saved under {}'.format(self.outdir))
 
 def main(): 
+    # example
+    # python rec.py --N 10 --L 5 --D 10000
     # parameters
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num_size', 
+    parser.add_argument('--N', 
         type=int, 
         required=True, 
-        help='define the number of real digits to involve')
-    parser.add_argument('--seq_len', 
+        help='defines the number of unique integers')
+    parser.add_argument('--L', 
         type=int, 
         required=True, 
-        help='define the sequence length of inputs')
-    parser.add_argument('--data_size', 
+        help='defines the number of integers in an equation')
+    parser.add_argument('--D', 
         type=int, 
         required=True, 
-        help='define the total data size')
+        help='defines the number of unique equations')
     args = parser.parse_args()
     # data preprocess
     RDP = RecurrentDataPreprocess(
-        num_size=args.num_size, 
-        seq_len=args.seq_len, 
-        data_size=args.data_size) 
+        N=args.N, 
+        L=args.L, 
+        D=args.D) 
     
 if __name__ == '__main__':
       main()

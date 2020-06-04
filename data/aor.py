@@ -4,7 +4,6 @@
 __author__ = 'Shining'
 __email__ = 'mrshininnnnn@gmail.com'
 
-
 # dependency
 # public
 import os
@@ -15,39 +14,38 @@ from tqdm import tqdm
 from utils import *
 
 
-# the calss to generate dataset for
-# the Arithmetic Operators Insertion (AOR) probelm
+# the calss to generate dataset for Arithmetic Operators Insertion (AOR)
 class ArithmeticOperatorRestoration(): 
     """docstring for ArithmeticOperatorRestoration"""
-    def __init__(self, operators, num_size):
+    def __init__(self, operators, N):
         super(ArithmeticOperatorRestoration, self).__init__()
         self.operators = operators
-        self.pos_digits_pool = np.arange(2, num_size+2).tolist()
-        self.neg_digits_pool = np.arange(-num_size, -1).tolist()
+        self.pos_digits_pool = np.arange(2, N+2).tolist()
+        self.neg_digits_pool = np.arange(-N, -1).tolist()
         self.digits_pool = self.pos_digits_pool + self.neg_digits_pool
     
     def gen_base_dict(self):
         # initialize a base value dict
         return {str(i):[] for i in self.pos_digits_pool}
         
-    def gen_operation(self, seq_len):
+    def gen_operation(self, L):
         # a recursion to geneate  the left side of an equation
-        if seq_len == 1:
+        if L == 1:
             a = np.random.choice(self.digits_pool)
             return [str(a)]
         else:
-            left_side  = self.gen_operation(seq_len-1)
+            left_side  = self.gen_operation(L-1)
             operator = np.random.choice(self.operators)
             b = np.random.choice(self.pos_digits_pool)
             return left_side + [operator, str(b)]
     
-    def gen_operation_list(self, seq_len, data_size):
+    def gen_operation_list(self, L, D):
         # to control the data size
         operations_pool = set()
-        for i in tqdm(range(data_size)):
+        for i in tqdm(range(D)):
             while True: 
                 # to avoid duplicates
-                operation = self.gen_operation(seq_len) 
+                operation = self.gen_operation(L) 
                 if ''.join(operation) in operations_pool: 
                     continue
                 else:
@@ -78,7 +76,7 @@ class ArithmeticOperatorRestoration():
                 self.xs.append(' '.join(x))
                 self.ys.append(' '.join(y))
 
-    def generate(self, seq_len, data_size):
+    def generate(self, L, D):
         # input sequences, output sequences
         self.xs, self.ys = [], []
         # initialize a value dictionary
@@ -86,8 +84,8 @@ class ArithmeticOperatorRestoration():
         self.value_dict = self.gen_base_dict()
         # generate the left side of an equation
         self.gen_operation_list(
-            seq_len=seq_len, 
-            data_size=data_size)
+            L=L, 
+            D=D)
         # generate relations given the value dict
         self.gen_equation_list()
         
@@ -117,9 +115,9 @@ def save_dataset(trainset, valset, testset, args):
     outdir = 'aor' 
     outdir = os.path.join(
         outdir, 
-        'num_size_{}'.format(args.num_size), 
-        'seq_len_{}'.format(args.seq_len), 
-        'data_size_{}'.format(args.data_size))
+        '{}N'.format(args.N), 
+        '{}L'.format(args.L), 
+        '{}D'.format(args.D))
     
     if not os.path.exists(outdir): 
         os.makedirs(outdir)
@@ -134,27 +132,29 @@ def save_dataset(trainset, valset, testset, args):
     print("find output from", outdir)
 
 def main():
+    # example
+    # python aor.py --N 10 --L 5 --D 10000
     # parameters
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num_size', 
+    parser.add_argument('--N', 
         type=int, 
         required=True, 
-        help='define the number of real digits to involve')
-    parser.add_argument('--seq_len', 
+        help=' defines the number of unique integers')
+    parser.add_argument('--L', 
         type=int, 
         required=True, 
-        help='define the sequence length of inputs')
-    parser.add_argument('--data_size', 
+        help='defines the number of integers in an equation')
+    parser.add_argument('--D', 
         type=int, 
         required=True, 
-        help='define the total data size')
+        help='defines the number of unique equations')
     args = parser.parse_args()
     # data generation 
-    operators = ['+', '-', '*', '/'] #TODO
-    moi = ArithmeticOperatorRestoration(operators, args.num_size) 
+    operators = ['+', '-', '*', '/']
+    moi = ArithmeticOperatorRestoration(operators, args.N) 
     xs, ys = moi.generate(
-        seq_len=args.seq_len-1, 
-        data_size=args.data_size)
+        L=args.L-1, 
+        D=args.D)
     trainset, valset, testset = train_test_split(xs, ys)
     save_dataset(trainset, valset, testset, args)
 

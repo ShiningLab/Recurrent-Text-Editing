@@ -10,7 +10,6 @@ __email__ = 'mrshininnnnn@gmail.com'
 import json
 import numpy as np
 
-
 # helper functions
 def load_txt(path: str) -> list:
     with open(path, 'r', encoding='utf-8') as f: 
@@ -41,7 +40,6 @@ def gen_rec_pair(x, y):
     x = xs[index]
     y_ = ys_[index]
     return x, y_, y
-    
 
 def gen_tag_pair(x, y):
     x_ = x.split()

@@ -16,12 +16,12 @@ from utils import *
 
 class RecurrentDataPreprocess(object):
     """docstring for RecurrentDataPreprocess"""
-    def __init__(self, num_size, seq_len, data_size):
+    def __init__(self, N, L, D):
         super(RecurrentDataPreprocess, self).__init__()
         self.method = 'rec'
-        self.num_size = num_size
-        self.seq_len = seq_len
-        self.data_size = data_size
+        self.N = N
+        self.L = L
+        self.D = D
         self.init_paths()
         self.data_preprocess()
         self.save()
@@ -31,15 +31,15 @@ class RecurrentDataPreprocess(object):
         indir = 'aes'
         self.indir = os.path.join(
             indir, 
-            'num_size_{}'.format(self.num_size), 
-            'seq_len_{}'.format(self.seq_len), 
-            'data_size_{}'.format(self.data_size))
+            '{}N'.format(self.N), 
+            '{}L'.format(self.L), 
+            '{}D'.format(self.D))
         # save path
         self.outdir = os.path.join(
             self.method, 
-            'num_size_{}'.format(self.num_size), 
-            'seq_len_{}'.format(self.seq_len), 
-            'data_size_{}'.format(self.data_size))
+            '{}N'.format(self.N), 
+            '{}L'.format(self.L), 
+            '{}D'.format(self.D))
         if not os.path.exists(self.outdir): os.makedirs(self.outdir)
 
     def data_preprocess(self):
@@ -70,8 +70,8 @@ class RecurrentDataPreprocess(object):
         i = len(src_vocab2idx_dict)
         for token in src_vocab_list:
             src_vocab2idx_dict[token] = i
-            i += 1 
-        # target vocabulary frequency distribution
+            i += 1
+        # target vocabulary frequency distribution 
         counter = Counter()
         for y_ in train_ys_:
             counter.update(y_) 
@@ -122,26 +122,28 @@ class RecurrentDataPreprocess(object):
         print('Processed Data saved under {}'.format(self.outdir))
 
 def main(): 
+    # example
+    # python rec.py --N 100 --L 5 --D 10000
     # parameters
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num_size', 
+    parser.add_argument('--N', 
         type=int, 
         required=True, 
-        help='define the number of real digits to involve')
-    parser.add_argument('--seq_len', 
+        help='defines the number of unique integers')
+    parser.add_argument('--L', 
         type=int, 
         required=True, 
-        help='define the sequence length of inputs')
-    parser.add_argument('--data_size', 
+        help='defines the number of integers in an equation')
+    parser.add_argument('--D', 
         type=int, 
         required=True, 
-        help='define the total data size')
+        help='defines the number of unique equations')
     args = parser.parse_args()
     # data preprocess
     RDP = RecurrentDataPreprocess(
-        num_size=args.num_size, 
-        seq_len=args.seq_len, 
-        data_size=args.data_size) 
+        N=args.N, 
+        L=args.L, 
+        D=args.D) 
     
 if __name__ == '__main__':
       main()

@@ -17,12 +17,12 @@ from utils import *
 
 class End2EndDataPreprocess(object):
     """docstring for End2EndDataPreprocess"""
-    def __init__(self, num_size, seq_len, data_size):
+    def __init__(self, N, L, D):
         super(End2EndDataPreprocess, self).__init__() 
         self.method = 'e2e'
-        self.num_size = num_size
-        self.seq_len = seq_len
-        self.data_size = data_size
+        self.N = N
+        self.L = L
+        self.D = D
         self.init_paths()
         self.data_preprocess()
         self.save()
@@ -32,14 +32,14 @@ class End2EndDataPreprocess(object):
         indir = 'aec'
         self.indir = os.path.join(
             indir, 
-            'num_size_{}'.format(self.num_size), 
-            'seq_len_{}'.format(self.seq_len), 
-            'data_size_{}'.format(self.data_size))
+            '{}N'.format(self.N), 
+            '{}L'.format(self.L), 
+            '{}D'.format(self.D))
         # save path
         self.outdir = os.path.join(self.method, 
-            'num_size_{}'.format(self.num_size), 
-            'seq_len_{}'.format(self.seq_len), 
-            'data_size_{}'.format(self.data_size))
+            '{}N'.format(self.N), 
+            '{}L'.format(self.L), 
+            '{}D'.format(self.D))
         if not os.path.exists(self.outdir): os.makedirs(self.outdir)
 
     def data_preprocess(self):
@@ -126,26 +126,28 @@ class End2EndDataPreprocess(object):
         save_json(vocab_path, self.vocab_dict)
 
 def main(): 
+    # example
+    # python e2e.py --N 10 --L 5 --D 10000
     # parameters
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num_size', 
+    parser.add_argument('--N', 
         type=int, 
         required=True, 
-        help='define the number of real digits to involve')
-    parser.add_argument('--seq_len', 
+        help='defines the number of unique integers')
+    parser.add_argument('--L', 
         type=int, 
         required=True, 
-        help='define the sequence length of inputs')
-    parser.add_argument('--data_size', 
+        help='defines the number of integers in an equation')
+    parser.add_argument('--D', 
         type=int, 
         required=True, 
-        help='define the total data size')
+        help='defines the number of unique equations')
     args = parser.parse_args()
     # data preprocess
     End2EndDataPreprocess(
-        num_size=args.num_size, 
-        seq_len=args.seq_len, 
-        data_size=args.data_size) 
+        N=args.N, 
+        L=args.L, 
+        D=args.D) 
     
 if __name__ == '__main__':
       main()
