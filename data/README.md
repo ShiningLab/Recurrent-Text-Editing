@@ -1,4 +1,4 @@
-# Recursive-Text-Editing: Data
+# Recurent-Text-Editing: Raw Data Generation
 
 ## Introduction
 This folder contains code to generate raw datasets for the Arithmetic Operators Restoration (AOR), Arithmetic Equation Simplification (AES), and Arithmetic Equation Correction (AEC).
@@ -12,9 +12,9 @@ This folder contains code to generate raw datasets for the Arithmetic Operators 
 + **aor.py** - for AOR data generation
 + **aes.py** - for AES data generation
 + **aec.py** - for AEC data generation
-+ **aor** - AOR raw datasets
-+ **aes** - AES raw datasets
-+ **aec** - AEC raw datasets
++ **aor** - AOR raw datasets used in the original work
++ **aes** - AES raw datasets used in the original work
++ **aec** - AEC raw datasets used in the original work
 ```
 data/
 ├── README.md
@@ -34,7 +34,7 @@ data/
 + tqdm == 4.46.0
 
 ## Run
-To generate a dataset for AOR with:
+Please note that the existing data will be overwritten by the new data. Run the following command to generate a dataset for AOR with:
 + N - 10
 + L - 5
 + D - 10000

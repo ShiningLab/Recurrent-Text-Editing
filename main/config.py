@@ -13,15 +13,15 @@ class Config():
       # config settings
       def __init__(self): 
         # data source
-        self.data_src = 'aes' # aor, aes, aec
-        self.method = 'tag' # e2e, tag, rec
-        self.data_mode = 'online' # offline, online
+        self.data_src = 'aor' # aor, aes, aec
+        self.method = 'e2e' # e2e, tag, rec
+        self.data_mode = 'offline' # offline, online
         # transformer
         # gru_rnn, lstm_rnn, bi_gru_rnn, bi_lstm_rnn, 
         # bi_gru_rnn_att, bi_lstm_rnn_att
         self.model_name = 'bi_lstm_rnn_att'
         self.load_check_point = False
-        self.N = 100 # numbers involved
+        self.N = 10 # numbers involved
         self.L = 5 # input sequence length
         self.D = 10000 # total data size
         self.num_errors = 3 #  the numebr of errors for AEC
