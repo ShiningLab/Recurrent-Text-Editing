@@ -8,7 +8,7 @@ __email__ = 'mrshininnnnn@gmail.com'
 # public
 import os
 
-
+# any change on model structure may cause an error
 class Config():
       # config settings
       def __init__(self): 
@@ -75,7 +75,7 @@ class Config():
         self.embedding_size = 512
         # encoder
         self.en_hidden_size = 512
-        self.en_num_layers = 1
+        self.en_num_layers = 1 
         # decoder
         self.de_hidden_size = 512
         self.de_num_layers = 1
