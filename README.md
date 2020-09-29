@@ -1,6 +1,6 @@
 # Recurrent-Text-Editing
 
-This repository is for the paper **Recurrent Inference in Text Editing** published on the *Findings of the 2020 Conference on Empirical Methods in Natural
+This repository is for the paper [Recurrent Inference in Text Editing](https://arxiv.org/abs/2009.12643) published on the *Findings of the 2020 Conference on Empirical Methods in Natural
  Language Processing*.
 
 ## Methods
