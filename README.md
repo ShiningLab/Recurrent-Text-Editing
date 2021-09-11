@@ -42,7 +42,7 @@ code/
 
 ## Authors
 * **Ning Shi** - mrshininnnnn@gmail.com
-* **Ziheng Zeng**
+* **Ziheng Zeng** - zzeng13@illinois.edu
 
 ## BibTex
 ```
