@@ -1,6 +1,6 @@
 # Recurrent-Text-Editing
 
-This repository is for the paper [Recurrent Inference in Text Editing](https://www.aclweb.org/anthology/2020.findings-emnlp.159/) in proceedings of [EMNLP 2020 Findings](https://www.aclweb.org/anthology/volumes/2020.findings-emnlp/).
+This repository is for the paper [Recurrent Inference in Text Editing](https://www.aclweb.org/anthology/2020.findings-emnlp.159/). In *Findings of the Association for Computational Linguistics: EMNLP 2020*, pages 1758–1769, Online. Association for Computational Linguistics.
 
 ## Methods
 + End2end
