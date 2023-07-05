@@ -2,7 +2,7 @@
 
 This repository is for the paper [Recurrent Inference in Text Editing](https://www.aclweb.org/anthology/2020.findings-emnlp.159/). In *Findings of the Association for Computational Linguistics: EMNLP 2020*, pages 1758–1769, Online. Association for Computational Linguistics.
 
-[[Poster](http://www.shininglab.ai/assets/posters/Recurrent_Inference_in_Text_Editing.pdf)] [[Slides](http://www.shininglab.ai/assets/slides/Recurrent_Inference_in_Text_Editing.pdf)] [[Video](https://slideslive.com/38940648/recurrent-inference-in-text-editing)]
+[[Poster](https://www.shininglab.ai/assets/posters/Recurrent%20Inference%20in%20Text%20Editing.pdf)] [[Slides](https://www.shininglab.ai/assets/slides/Recurrent%20Inference%20in%20Text%20Editing.pdf)] [[Video](https://slideslive.com/38940648/recurrent-inference-in-text-editing)]
 
 ## Methods
 + End2end
